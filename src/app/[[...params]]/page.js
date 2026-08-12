@@ -151,6 +151,7 @@ export default async function CalendarPage({ params, searchParams }) {
       lang={lang}
       locale={lang}
       defaultLocale={defaultLocale}
+      locales={locales}
       today={new Date()}
       {...data}
     />

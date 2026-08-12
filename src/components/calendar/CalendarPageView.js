@@ -7,6 +7,7 @@ import AdminLogoutButton from "@/components/calendar/AdminLogoutButton";
 import LeaderboardButton from "@/components/calendar/LeaderboardButton";
 import CountdownTimer from "@/components/calendar/CountdownTimer";
 import CalendarJsonLd from "@/components/calendar/CalendarJsonLd";
+import LocaleSwitcher from "@/components/calendar/LocaleSwitcher";
 import { bebasNeue, exo2Black } from "@/app/fonts";
 
 export default function CalendarPageView({
@@ -16,6 +17,7 @@ export default function CalendarPageView({
   lang,
   locale,
   defaultLocale,
+  locales,
   today,
   weekly,
   specials,
@@ -77,8 +79,11 @@ export default function CalendarPageView({
             />
           </a>
 
-          <div className={theme === "football" ? "absolute right-4 hidden md:block" : ""}>
+          <div className={`flex items-center gap-2 ${theme === "football" ? "absolute right-4 hidden md:flex" : ""}`}>
             {leaderboard?.enabled && <LeaderboardButton feedUrl={leaderboard.feedUrl} />}
+            {locales?.length > 1 && (
+              <LocaleSwitcher year={year} month={month} locale={locale} defaultLocale={defaultLocale} locales={locales} />
+            )}
           </div>
 
         </header>
