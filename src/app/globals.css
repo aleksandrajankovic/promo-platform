@@ -1,0 +1,467 @@
+@import url("https://fonts.googleapis.com/css2?family=Rowdies:wght@700&display=swap");
+@import "tailwindcss";
+
+:root {
+  --background: #05080e;
+  --foreground: #171717;
+  --green-primary: #17bb00;
+  --black-white: #2d2d2d;
+  --black-white-80: #404040;
+  --black-white-90: #2d2d2d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+@layer utilities {
+  .font-roboto {
+    font-family: var(--font-roboto), system-ui, sans-serif;
+  }
+  .calendar-bg {
+    @apply bg-no-repeat bg-cover bg-center;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: #050e13; 
+}
+.tiptap {
+  :first-child {
+    margin-top: 0;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  /* Heading styles */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    line-height: 1.1;
+    text-wrap: pretty;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  h4,
+  h5,
+  h6 {
+    font-size: 1rem;
+  }
+
+  /* List styles */
+  ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+
+  ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+
+  li {
+    margin: 0;
+  }
+
+  /* Centered list items — bullet hugs the text */
+  li[style*="text-align:center"],
+  li[style*="text-align: center"],
+  li:has(> p[style*="text-align:center"]),
+  li:has(> p[style*="text-align: center"]) {
+    list-style-position: inside;
+    text-align: center;
+  }
+  li[style*="text-align:center"] > p,
+  li[style*="text-align: center"] > p,
+  li:has(> p[style*="text-align:center"]) > p,
+  li:has(> p[style*="text-align: center"]) > p {
+    display: inline;
+  }
+  ul:has(li[style*="text-align:center"]),
+  ul:has(li[style*="text-align: center"]),
+  ul:has(li > p[style*="text-align:center"]),
+  ul:has(li > p[style*="text-align: center"]) {
+    padding-left: 0;
+  }
+}
+
+/* Popup modal — centered list items */
+#promo-content li[style*="text-align:center"],
+#promo-content li[style*="text-align: center"],
+#promo-content li:has(> p[style*="text-align:center"]),
+#promo-content li:has(> p[style*="text-align: center"]) {
+  list-style-position: inside;
+  text-align: center;
+}
+#promo-content li[style*="text-align:center"] > p,
+#promo-content li[style*="text-align: center"] > p,
+#promo-content li:has(> p[style*="text-align:center"]) > p,
+#promo-content li:has(> p[style*="text-align: center"]) > p {
+  display: inline;
+}
+#promo-content ul:has(li[style*="text-align:center"]),
+#promo-content ul:has(li[style*="text-align: center"]),
+#promo-content ul:has(li > p[style*="text-align:center"]),
+#promo-content ul:has(li > p[style*="text-align: center"]) {
+  padding-left: 0;
+}
+button {
+  cursor: pointer;
+}
+/* Scope za editor */
+.tiptap [data-fs="12"] {
+  font-size: 12px !important;
+}
+.tiptap [data-fs="14"] {
+  font-size: 14px !important;
+}
+.tiptap [data-fs="16"] {
+  font-size: 16px !important;
+}
+.tiptap [data-fs="18"] {
+  font-size: 18px !important;
+}
+.tiptap [data-fs="20"] {
+  font-size: 20px !important;
+}
+.tiptap [data-fs="24"] {
+  font-size: 24px !important;
+}
+.tiptap [data-fs="28"] {
+  font-size: 28px !important;
+}
+.tiptap [data-fs="32"] {
+  font-size: 32px !important;
+}
+
+.tiptap [data-color="red"] {
+  color: #ff0000 !important;
+}
+.tiptap [data-color="green"] {
+  color: #00aa00 !important;
+}
+.tiptap [data-color="blue"] {
+  color: #0066ff !important;
+}
+.prose [data-fs="12"] {
+  font-size: 12px !important;
+}
+.prose [data-fs="14"] {
+  font-size: 14px !important;
+}
+.prose [data-fs="16"] {
+  font-size: 16px !important;
+}
+.prose [data-fs="18"] {
+  font-size: 18px !important;
+}
+.prose [data-fs="20"] {
+  font-size: 20px !important;
+}
+.prose [data-fs="24"] {
+  font-size: 24px !important;
+}
+.prose [data-fs="28"] {
+  font-size: 28px !important;
+}
+.prose [data-fs="32"] {
+  font-size: 32px !important;
+}
+
+.prose [data-color="red"] {
+  color: #ff0000 !important;
+}
+.prose [data-color="green"] {
+  color: #00aa00 !important;
+}
+.prose [data-color="blue"] {
+  color: #0066ff !important;
+}
+.today {
+  outline: 2px solid red;
+  border-radius: 8px;
+}
+.future {
+  opacity: 0.5;
+  pointer-events: none;
+  outline: 2px solid gray;
+}
+.no-click {
+  cursor: not-allowed;
+}
+.modal-backdrop.hidden {
+  display: none !important;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.modal-body img {
+  height: 100px;
+}
+.modal-card {
+  background: #0a0a0a;
+  color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 640px;
+  width: 90%;
+}
+
+#scratch-canvas {
+  cursor: url("/img/kopacka-01.png") 16 16, pointer;
+}
+/* Admin može da klikne future */
+.admin-preview .future button,
+.admin-preview .future {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+/* osnovni stil za skrol unutar modala */
+#promo-content {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+#promo-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+#promo-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#promo-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+}
+
+#promo-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+/* Na mobilu sakrij skrolbar, ali ostavi skrolovanje */
+@media (max-width: 767px) {
+  #promo-content {
+    scrollbar-width: none;      /* Firefox */
+  }
+  #promo-content::-webkit-scrollbar {
+    display: none;              /* WebKit */
+  }
+}
+/* -------- MOBILE FOOTBALL ANIMATIONS -------- */
+
+@keyframes ball-pulse-ring {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.08); opacity: 0.3; }
+}
+
+@keyframes ball-glow-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes nudge-left {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-4px); }
+}
+
+@keyframes nudge-right {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@keyframes promo-dot-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.6); opacity: 0.5; }
+}
+
+.ball-pulse-ring {
+  animation: ball-pulse-ring 2.5s ease-in-out infinite;
+}
+
+.ball-pulse-ring-delay {
+  animation: ball-pulse-ring 2.5s ease-in-out 0.8s infinite;
+}
+
+.ball-glow-breathe {
+  animation: ball-glow-breathe 3s ease-in-out infinite;
+}
+
+.nudge-left {
+  animation: nudge-left 2s ease-in-out infinite;
+}
+
+.nudge-right {
+  animation: nudge-right 2s ease-in-out infinite;
+}
+
+.promo-dot-pulse {
+  animation: promo-dot-pulse 2s ease-in-out infinite;
+}
+
+/* -------- GOLD BALL ANIMATIONS -------- */
+
+@keyframes gold-glow-pulse {
+  0%, 100% { box-shadow: 0 0 18px 4px rgba(248,217,122,0.45); }
+  50%       { box-shadow: 0 0 30px 10px rgba(248,217,122,0.72); }
+}
+
+@keyframes gold-shimmer {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(110%); }
+}
+
+/* 600ms wobble, 4400ms pause = 5s cycle */
+@keyframes gold-wobble {
+  0%   { transform: rotate(0deg); }
+  6%   { transform: rotate(-3deg); }
+  9%   { transform: rotate(3deg); }
+  12%  { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes gold-click-shake {
+  0%   { transform: rotate(0deg)  scale(1);    }
+  20%  { transform: rotate(-6deg) scale(1.05); }
+  40%  { transform: rotate(6deg)  scale(1.08); }
+  60%  { transform: rotate(-6deg) scale(1.11); }
+  80%  { transform: rotate(6deg)  scale(1.14); }
+  100% { transform: rotate(0deg)  scale(1.15); }
+}
+
+@keyframes gold-rays-spin {
+  0%   { transform: rotate(0deg)   scale(0.4); opacity: 0.9; }
+  50%  { transform: rotate(180deg) scale(1.5); opacity: 1;   }
+  100% { transform: rotate(360deg) scale(1.5); opacity: 0;   }
+}
+
+.gold-ball-glow {
+  animation: gold-glow-pulse 2.4s ease-in-out infinite;
+}
+
+.gold-ball-wobble {
+  animation: gold-wobble 5s ease-in-out infinite;
+}
+
+/* -------- KNOCKOUT RINGS -------- */
+
+@keyframes knockout-bronze-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #CD7F32, 0 0 12px rgba(205,127,50,0.4), 0 0 28px rgba(205,127,50,0.15); }
+  50%       { box-shadow: 0 0 0 2px #E8A050, 0 0 20px rgba(205,127,50,0.65), 0 0 44px rgba(205,127,50,0.25); }
+}
+
+@keyframes knockout-silver-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #B0B0B0, 0 0 12px rgba(192,192,192,0.35), 0 0 28px rgba(192,192,192,0.12); }
+  50%       { box-shadow: 0 0 0 2px #D8D8D8, 0 0 20px rgba(220,220,220,0.6),  0 0 44px rgba(192,192,192,0.22); }
+}
+
+@keyframes knockout-gold-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px #D4A017, 0 0 16px rgba(212,160,23,0.5),  0 0 40px rgba(212,160,23,0.18); }
+  50%       { box-shadow: 0 0 0 3px #F0C040, 0 0 28px rgba(240,192,48,0.85), 0 0 64px rgba(212,160,23,0.4), 0 0 90px rgba(212,160,23,0.15); }
+}
+
+.knockout-ring-bronze {
+  animation: knockout-bronze-pulse 2.6s ease-in-out infinite;
+}
+
+.knockout-ring-silver {
+  animation: knockout-silver-pulse 2.6s ease-in-out infinite;
+}
+
+.knockout-ring-gold {
+  animation: knockout-gold-pulse 2.2s ease-in-out infinite;
+}
+
+@keyframes knockout-ball-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.knockout-ball-spin {
+  animation: knockout-ball-spin 5s linear infinite;
+}
+
+/* Badge */
+.knockout-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 20;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 30px;
+  white-space: nowrap;
+  line-height: 1.5;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.55);
+  pointer-events: none;
+}
+
+.knockout-badge-bronze { background: #CD7F32; color: #1a0800; }
+.knockout-badge-silver { background: #C8C8C8; color: #0a0a0a; }
+.knockout-badge-gold   { background: #D4A017; color: #1a1000; }
+
+/* -------- SNOW -------- */
+
+.snowflake {
+  position: absolute;
+  top: -10%;
+  color: #ffffff;
+  text-shadow:
+    0 0 4px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(255, 255, 255, 0.4);
+  will-change: transform;
+  animation-name: snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* osnovna animacija – pada nadole + lagani drift */
+@keyframes snow-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0);
+  }
+  100% {
+    transform: translate3d(var(--drift, 0px), 110vh, 0);
+  }
+}
