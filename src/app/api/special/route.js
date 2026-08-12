@@ -3,25 +3,40 @@ export const runtime = "nodejs";
 
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
 import { sanitizeRichHtml, sanitizeTranslations } from "@/lib/sanitize";
 import { sanitizeLink } from "@/lib/validate";
+import { getAllowedCategories } from "@/lib/calendar/promoCategoryStyles";
 
-const DEFAULT_LANG = "pt";
+async function resolveMonthTheme(marketId, year, month) {
+  const settings = await prisma.calendarSettings.findUnique({ where: { marketId } });
+  const monthBg = settings?.monthBackgrounds?.[`${year}-${month}`];
+  return monthBg?.theme || settings?.theme || "default";
+}
 
 export async function GET(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
-  const rows = await prisma.specialPromotion.findMany();
+  const rows = await prisma.specialPromotion.findMany({ where: { marketId: market.id } });
   const safe = rows.map((r) => ({ ...r, richHtml: r.richHtml ?? null }));
   return Response.json(safe);
 }
 
 // PATCH /api/special — bulk activate/deactivate by ids
 export async function PATCH(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
   const { ids, active } = body;
@@ -31,7 +46,7 @@ export async function PATCH(req) {
   }
 
   const { count } = await prisma.specialPromotion.updateMany({
-    where: { id: { in: ids.map(Number) } },
+    where: { id: { in: ids.map(Number) }, marketId: market.id },
     data: { active },
   });
 
@@ -40,18 +55,23 @@ export async function PATCH(req) {
 }
 
 export async function POST(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
   const {
-    year, month, day, icon, link, buttonColor, active, scratch,
+    year, month, day, icon, link, buttonColor, active, scratch, flipCard,
     title, button, rich, richHtml,
     translations: rawTranslations, defaultLang, category, knockoutPhase,
   } = body;
 
   const translations = rawTranslations || {};
-  const mainLang = defaultLang || DEFAULT_LANG;
+  const mainLang = defaultLang || market.defaultLocale || "sr";
   const mainT = translations[mainLang] || {};
 
   const MIN_YEAR = 2024, MAX_YEAR = new Date().getFullYear() + 5;
@@ -64,8 +84,18 @@ export async function POST(req) {
     return new Response("bad payload", { status: 400 });
   }
 
+  const theme = await resolveMonthTheme(market.id, year, month);
+  const allowed = getAllowedCategories(theme);
+  if (category && !allowed.includes(category)) {
+    return new Response(`category "${category}" not allowed outside football theme`, { status: 400 });
+  }
+  if (knockoutPhase && theme !== "football") {
+    return new Response("knockoutPhase only allowed for football theme", { status: 400 });
+  }
+
   const created = await prisma.specialPromotion.create({
     data: {
+      marketId: market.id,
       year, month, day,
       title: mainT.title ?? title ?? "",
       button: mainT.button ?? button ?? "",
@@ -75,6 +105,7 @@ export async function POST(req) {
       icon: icon ?? "",
       active: typeof active === "boolean" ? active : true,
       scratch: !!scratch,
+      flipCard: !!flipCard,
       buttonColor: buttonColor || "green",
       translations: sanitizeTranslations(translations),
       category: category || "ALL",

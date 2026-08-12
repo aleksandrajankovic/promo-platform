@@ -5,7 +5,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import sharp from "sharp";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
 import { sanitizeSvg } from "@/lib/sanitize";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -15,8 +15,13 @@ const RASTER_MIME = ["image/jpeg", "image/png", "image/webp"];
 const ALLOWED_MIME = [...RASTER_MIME, "image/svg+xml"];
 
 export async function POST(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const form = await req.formData();
   const file = form.get("file");
@@ -40,7 +45,9 @@ export async function POST(req) {
     .toLowerCase();
   const hash = crypto.createHash("md5").update(inputBuf).digest("hex").slice(0, 8);
 
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  // Zajednički volume, odvojen po tržištu — sprečava da dva tržišta
+  // slučajno prepišu isti fajl kad im se hash imena poklope.
+  const uploadsDir = path.join(process.cwd(), "public", "uploads", market.code);
   await fs.mkdir(uploadsDir, { recursive: true });
 
   // SVG — sanitizuj (ukloni <script>, on*= handlere, javascript:/data: linkove) pre čuvanja
@@ -49,7 +56,7 @@ export async function POST(req) {
     const outPath = path.join(uploadsDir, fileName);
     const clean = sanitizeSvg(inputBuf.toString("utf8"));
     await fs.writeFile(outPath, clean, "utf8");
-    return Response.json({ url: `/uploads/${fileName}` });
+    return Response.json({ url: `/uploads/${market.code}/${fileName}` });
   }
 
   // Raster slike — konvertuj u WebP
@@ -60,5 +67,5 @@ export async function POST(req) {
     .webp({ quality: QUALITY })
     .toFile(outPath);
 
-  return Response.json({ url: `/uploads/${fileNameWebp}` });
+  return Response.json({ url: `/uploads/${market.code}/${fileNameWebp}` });
 }

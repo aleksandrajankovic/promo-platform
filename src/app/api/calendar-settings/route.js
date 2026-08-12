@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
 
 const VALID_POS = ["left", "center", "right"];
 const VALID_THEMES = ["default", "default-horizontal", "football"];
@@ -12,10 +12,15 @@ const DEFAULT_SEO_META = {
 };
 
 export async function GET(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
-  const row = await prisma.calendarSettings.findFirst();
+  const row = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
   return Response.json({
     bgImageUrl:       row?.bgImageUrl       || "/img/bg-calendar.png",
     bgImageUrlMobile: row?.bgImageUrlMobile || "/img/bg-calendar-mobile.png",
@@ -35,8 +40,13 @@ export async function GET(req) {
 }
 
 export async function PUT(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
 
@@ -67,11 +77,12 @@ export async function PUT(req) {
     patch.theme = VALID_THEMES.includes(body.theme) ? body.theme : "default";
 
   if ("seoMeta" in body) {
-    const s = body.seoMeta;
+    const lang = market.defaultLocale || "sr";
+    const s = body.seoMeta?.[lang] ?? body.seoMeta;
     patch.seoMeta = {
-      sr: {
-        title:       (typeof s?.sr?.title       === "string" ? s.sr.title.trim()       : "") || DEFAULT_SEO_META.sr.title,
-        description: (typeof s?.sr?.description === "string" ? s.sr.description.trim() : "") || DEFAULT_SEO_META.sr.description,
+      [lang]: {
+        title:       (typeof s?.title       === "string" ? s.title.trim()       : "") || DEFAULT_SEO_META.sr.title,
+        description: (typeof s?.description === "string" ? s.description.trim() : "") || DEFAULT_SEO_META.sr.description,
       },
     };
   }
@@ -115,9 +126,9 @@ export async function PUT(req) {
   }
 
   const row = await prisma.calendarSettings.upsert({
-    where:  { id: 1 },
+    where:  { marketId: market.id },
     update: patch,
-    create: { id: 1, ...patch },
+    create: { marketId: market.id, ...patch },
   });
 
   revalidateTag("calendar");

@@ -4,14 +4,14 @@ export const runtime = "nodejs";
 import prisma from "@/lib/db";
 import { getAdminFromRequest } from "@/lib/auth";
 
-// PATCH /api/admin/users/:id  -> edit name/email (samo super admin)
+// PATCH /api/admin/users/:id  -> edit name/email/role/market (samo super admin)
 export async function PATCH(req, { params }) {
   const { id: idParam } = await params;
 
   try {
     const session = await getAdminFromRequest(req);
     if (!session) return new Response("Unauthorized", { status: 401 });
-    if (!session.isSuper) return new Response("Forbidden", { status: 403 });
+    if (session.role !== "SUPER_ADMIN") return new Response("Forbidden", { status: 403 });
 
     const id = Number(idParam);
     if (!Number.isInteger(id)) return new Response("Bad id", { status: 400 });
@@ -20,10 +20,19 @@ export async function PATCH(req, { params }) {
     const data = {};
     if (body.name) data.name = String(body.name).trim();
     if (body.email) data.email = String(body.email).trim().toLowerCase();
+    if (body.role === "SUPER_ADMIN" || body.role === "ADMIN") data.role = body.role;
+    if ("marketId" in body) data.marketId = body.marketId || null;
 
     if (!Object.keys(data).length) {
       return new Response("Nothing to update", { status: 400 });
     }
+
+    const finalRole = data.role ?? (await prisma.adminUser.findUnique({ where: { id }, select: { role: true } }))?.role;
+    const finalMarketId = "marketId" in data ? data.marketId : undefined;
+    if (finalRole === "ADMIN" && finalMarketId === null) {
+      return new Response("marketId is required for a non-super admin", { status: 400 });
+    }
+    if (finalRole === "SUPER_ADMIN") data.marketId = null;
 
     if (data.email) {
       const existing = await prisma.adminUser.findUnique({ where: { email: data.email } });
@@ -31,11 +40,15 @@ export async function PATCH(req, { params }) {
         return new Response("Email already in use", { status: 409 });
       }
     }
+    if (data.marketId) {
+      const market = await prisma.market.findUnique({ where: { id: data.marketId } });
+      if (!market) return new Response("Unknown marketId", { status: 400 });
+    }
 
     const updated = await prisma.adminUser.update({
       where: { id },
       data,
-      select: { id: true, name: true, email: true, isSuper: true, createdAt: true, updatedAt: true },
+      select: { id: true, name: true, email: true, role: true, marketId: true, createdAt: true, updatedAt: true },
     });
 
     return Response.json(updated);
@@ -52,7 +65,7 @@ export async function DELETE(req, { params }) {
   try {
     const session = await getAdminFromRequest(req);
     if (!session) return new Response("Unauthorized", { status: 401 });
-    if (!session.isSuper) return new Response("Forbidden", { status: 403 });
+    if (session.role !== "SUPER_ADMIN") return new Response("Forbidden", { status: 403 });
 
     const id = Number(idParam);
     if (!Number.isInteger(id)) return new Response("Bad id", { status: 400 });
@@ -64,9 +77,9 @@ export async function DELETE(req, { params }) {
     const user = await prisma.adminUser.findUnique({ where: { id } });
     if (!user) return new Response("Not found", { status: 404 });
 
-    if (user.isSuper) {
+    if (user.role === "SUPER_ADMIN") {
       const otherSupers = await prisma.adminUser.count({
-        where: { isSuper: true, NOT: { id } },
+        where: { role: "SUPER_ADMIN", NOT: { id } },
       });
       if (otherSupers === 0) {
         return new Response("Cannot delete last super admin", { status: 400 });

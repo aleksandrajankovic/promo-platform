@@ -1,7 +1,8 @@
 // src/app/[year]/[month]/page.js
 import { notFound, redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import CalendarPageView from "@/components/calendar/CalendarPageView";
+import { resolveMarketByHost } from "@/lib/marketScope";
 import {
   buildCalendarMetadata,
   loadCalendarPageData,
@@ -26,7 +27,10 @@ export async function generateMetadata({ params }) {
   const p = await params;
   const parsed = parseParams(p);
   if (!parsed) return {};
-  return buildCalendarMetadata(parsed.year, parsed.month);
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) return {};
+  return buildCalendarMetadata(market, parsed.year, parsed.month);
 }
 
 export default async function CalendarMonthPage({ params }) {
@@ -41,12 +45,16 @@ export default async function CalendarMonthPage({ params }) {
     redirect("/");
   }
 
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) notFound();
+
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get("admin_auth");
   const isAdmin = !!adminCookie?.value;
-  const lang = "sr";
+  const lang = market.defaultLocale || "sr";
 
-  const data = await loadCalendarPageData({ year, month, isAdmin, lang });
+  const data = await loadCalendarPageData({ market, year, month, isAdmin, lang });
 
   return (
     <CalendarPageView

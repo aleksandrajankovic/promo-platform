@@ -3,19 +3,24 @@ export const runtime = "nodejs";
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
 
 export async function GET(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const uploadsDir = path.join(process.cwd(), "public", "uploads", market.code);
 
   try {
     const entries = await fs.readdir(uploadsDir, { withFileTypes: true });
     const files = entries
       .filter((e) => e.isFile())
-      .map((e) => ({ name: e.name, url: `/uploads/${e.name}` }));
+      .map((e) => ({ name: e.name, url: `/uploads/${market.code}/${e.name}` }));
 
     return Response.json({ files });
   } catch (err) {
@@ -26,8 +31,13 @@ export async function GET(req) {
 }
 
 export async function DELETE(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
   const rawFilename = (body.filename || "").trim();
@@ -37,7 +47,7 @@ export async function DELETE(req) {
     return new Response("Bad filename", { status: 400 });
   }
 
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const uploadsDir = path.join(process.cwd(), "public", "uploads", market.code);
 
   try {
     await fs.unlink(path.join(uploadsDir, filename));

@@ -1,11 +1,12 @@
 // src/app/promo/[iso]/[slug]/page.js
 import { cache } from "react";
-import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { redirect, notFound } from "next/navigation";
+import { cookies, headers } from "next/headers";
 import CalendarPageView from "@/components/calendar/CalendarPageView";
 import { buildPromoUrlISO } from "@/lib/calendar/slug";
 import { buildCalendarData } from "@/lib/calendar/calendarGridHelpers";
-import { BASE_URL, loadCalendarPageData, monthHref } from "@/lib/calendar/calendarPage";
+import { resolveMarketByHost } from "@/lib/marketScope";
+import { getBaseUrl, loadCalendarPageData, monthHref } from "@/lib/calendar/calendarPage";
 
 // YYYY-MM-DD → { y, m(0-11), d } + validacija
 function parseISO(iso) {
@@ -25,19 +26,20 @@ function stripHtml(html = "") {
 }
 
 // generateMetadata i sama stranica traže isti dan — cache() dedupuje DB upite u okviru jednog requesta
-const resolveDayEntry = cache(async (iso, isAdmin) => {
+const resolveDayEntry = cache(async (market, iso, isAdmin) => {
   const parsed = parseISO(iso);
   if (!parsed) return null;
 
   const { y, m, d } = parsed;
-  const data = await loadCalendarPageData({ year: y, month: m, isAdmin, lang: "sr" });
+  const lang = market.defaultLocale || "sr";
+  const data = await loadCalendarPageData({ market, year: y, month: m, isAdmin, lang });
   const { daysPayload } = buildCalendarData({
     year: y,
     month: m,
     weekly: data.weekly,
     specials: data.specials,
     adminPreview: isAdmin,
-    lang: "sr",
+    lang,
     today: new Date(),
   });
 
@@ -52,12 +54,16 @@ const resolveDayEntry = cache(async (iso, isAdmin) => {
 
 export async function generateMetadata({ params }) {
   const p = await params;
-  const resolved = await resolveDayEntry(p.iso, false);
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) return {};
+
+  const resolved = await resolveDayEntry(market, p.iso, false);
   if (!resolved) return {};
 
   const { y, m, d, entry } = resolved;
   const date = new Date(y, m, d);
-  const canonical = `${BASE_URL}${buildPromoUrlISO(date, entry.title)}`;
+  const canonical = `${getBaseUrl(market)}${buildPromoUrlISO(date, entry.title)}`;
   const description =
     stripHtml(entry.richHtml || "").slice(0, 160) ||
     `Otkrijte dnevnu promociju "${entry.title}" u Meridianbet Kalendaru Promocija.`;
@@ -92,11 +98,15 @@ export async function generateMetadata({ params }) {
 export default async function PromoDetailPage({ params }) {
   const p = await params;
 
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) notFound();
+
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get("admin_auth");
   const isAdmin = !!adminCookie?.value;
 
-  const resolved = await resolveDayEntry(p.iso, isAdmin);
+  const resolved = await resolveDayEntry(market, p.iso, isAdmin);
   if (!resolved) {
     // Nevalidan datum, dan bez promocije, ili još zaključan dan — nema šta jedinstveno da se prikaže
     const parsed = parseISO(p.iso);
@@ -110,7 +120,7 @@ export default async function PromoDetailPage({ params }) {
       year={y}
       month={m}
       isAdmin={isAdmin}
-      lang="sr"
+      lang={market.defaultLocale || "sr"}
       today={new Date()}
       openDay={entry.day}
       {...data}

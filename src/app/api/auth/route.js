@@ -49,7 +49,11 @@ export async function POST(req) {
     }
 
     clearAttempts(ip);
-    const token = await signToken({ adminId: admin.id, isSuper: admin.isSuper });
+    const token = await signToken({
+      adminId: admin.id,
+      role: admin.role,
+      marketId: admin.marketId,
+    });
 
     return new Response(null, {
       status: 204,

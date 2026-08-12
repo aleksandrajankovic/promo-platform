@@ -3,14 +3,21 @@ export const runtime = "nodejs";
 
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
 import { sanitizeRichHtml, sanitizeTranslations } from "@/lib/sanitize";
 import { sanitizeLink } from "@/lib/validate";
 
-const DEFAULT_LANG = "pt";
-
-// GET /api/weekly-plan?year=YYYY&month=MM — public, za front
+// GET /api/weekly-plan?year=YYYY&month=MM — u praksi je konzumuje samo admin UI
+// (autentifikovan), zato ide kroz isti marketScope kao ostale admin rute.
 export async function GET(req) {
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
+
   const { searchParams } = new URL(req.url);
   const year = Number.parseInt(searchParams.get("year") ?? "", 10);
   const month = Number.parseInt(searchParams.get("month") ?? "", 10);
@@ -20,7 +27,7 @@ export async function GET(req) {
   }
 
   const rows = await prisma.weeklyPlan.findMany({
-    where: { year, month },
+    where: { marketId: market.id, year, month },
     orderBy: { weekday: "asc" },
   });
 
@@ -29,8 +36,13 @@ export async function GET(req) {
 
 // PATCH /api/weekly-plan — bulk activate/deactivate svih dana u mesecu
 export async function PATCH(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
   const year = Number.parseInt(body.year, 10);
@@ -42,7 +54,7 @@ export async function PATCH(req) {
   }
 
   const { count } = await prisma.weeklyPlan.updateMany({
-    where: { year, month },
+    where: { marketId: market.id, year, month },
     data: { active },
   });
 
@@ -51,8 +63,13 @@ export async function PATCH(req) {
 }
 
 export async function PUT(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
   const year = Number.parseInt(body.year, 10);
@@ -73,10 +90,11 @@ export async function PUT(req) {
   } = body;
 
   const translations = rawTranslations || {};
-  const mainLang = defaultLang || DEFAULT_LANG;
+  const mainLang = defaultLang || market.defaultLocale || "sr";
   const mainT = translations[mainLang] || {};
 
   const data = {
+    marketId: market.id,
     year, month, weekday,
     title: mainT.title ?? title ?? "",
     button: mainT.button ?? button ?? "",
@@ -92,7 +110,7 @@ export async function PUT(req) {
   };
 
   const row = await prisma.weeklyPlan.upsert({
-    where: { year_month_weekday: { year, month, weekday } },
+    where: { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } },
     create: data,
     update: data,
   });
@@ -102,8 +120,13 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("unauthorized", { status: 401 });
+  let market;
+  try {
+    ({ market } = await requireAdminMarket(req));
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const body = await req.json().catch(() => ({}));
   const year = Number.parseInt(body.year, 10);
@@ -119,7 +142,7 @@ export async function DELETE(req) {
 
   try {
     await prisma.weeklyPlan.delete({
-      where: { year_month_weekday: { year, month, weekday } },
+      where: { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } },
     });
   } catch {
     // ako ne postoji, i dalje vraćamo 204

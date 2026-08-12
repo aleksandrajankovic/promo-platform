@@ -46,6 +46,15 @@ export function getExclusiveBadgeLabel(category, lang = "sr") {
     : "";
 }
 
+const FOOTBALL_ONLY_CATEGORIES = ["GOLD", "QUARTER_FINAL", "SEMI_FINAL", "FINAL"];
+const BASE_CATEGORIES = ["ALL", "SPORT", "CASINO", "MISSIONS"];
+
+// GOLD i knockout kategorije (kružići, "1/4"/"1/2"/finale bedževi) imaju smisla
+// samo u football temi — van nje se ne nude u editoru niti prihvataju na API-ju.
+export function getAllowedCategories(theme) {
+  return theme === "football" ? [...BASE_CATEGORIES, ...FOOTBALL_ONLY_CATEGORIES] : BASE_CATEGORIES;
+}
+
 export const KNOCKOUT_CATEGORIES = new Set(["QUARTER_FINAL", "SEMI_FINAL", "FINAL"]);
 
 export function getKnockoutRingClass(category) {

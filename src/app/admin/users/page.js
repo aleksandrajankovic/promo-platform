@@ -5,39 +5,50 @@ import toast from "react-hot-toast";
 
 export default function AdminUsersPage() {
   const [admins, setAdmins] = useState([]);
+  const [markets, setMarkets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
-  const [isSuper, setIsSuper] = useState(false);
+  const [role, setRole] = useState("ADMIN");
+  const [marketId, setMarketId] = useState("");
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
 
-  // ucitavanje liste admina
+  // ucitavanje liste admina i trzista
   useEffect(() => {
     async function loadAdmins() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("/api/admin/users");
-        if (res.status === 401) {
+        const [adminsRes, marketsRes] = await Promise.all([
+          fetch("/api/admin/users"),
+          fetch("/api/admin/markets"),
+        ]);
+        if (adminsRes.status === 401) {
           setError("Unauthorized – please log in again.");
           return;
         }
-        if (res.status === 403) {
+        if (adminsRes.status === 403) {
           setError("Only super admins can manage users.");
           return;
         }
-        if (!res.ok) {
-          const t = await res.text().catch(() => "");
-          throw new Error(t || `HTTP ${res.status}`);
+        if (!adminsRes.ok) {
+          const t = await adminsRes.text().catch(() => "");
+          throw new Error(t || `HTTP ${adminsRes.status}`);
         }
-        const data = await res.json();
+        const data = await adminsRes.json();
         setAdmins(data);
+
+        if (marketsRes.ok) {
+          const marketData = await marketsRes.json();
+          setMarkets(marketData);
+          if (marketData.length && !marketId) setMarketId(marketData[0].id);
+        }
       } catch (err) {
         console.error(err);
         setError("Failed to load admin users.");
@@ -46,12 +57,17 @@ export default function AdminUsersPage() {
       }
     }
     loadAdmins();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onSubmit(e) {
     e.preventDefault();
     if (!name.trim() || !email.trim() || !pwd.trim()) {
       toast.error("Fill in all fields.");
+      return;
+    }
+    if (role === "ADMIN" && !marketId) {
+      toast.error("Pick a market for this admin.");
       return;
     }
     setSaving(true);
@@ -63,7 +79,8 @@ export default function AdminUsersPage() {
           name: name.trim(),
           email: email.trim(),
           password: pwd.trim(),
-          isSuper,
+          role,
+          marketId: role === "ADMIN" ? marketId : null,
         }),
       });
 
@@ -88,7 +105,7 @@ export default function AdminUsersPage() {
       setName("");
       setEmail("");
       setPwd("");
-      setIsSuper(false);
+      setRole("ADMIN");
     } catch (err) {
       console.error(err);
       toast.error("Failed to create admin user.");
@@ -224,21 +241,38 @@ export default function AdminUsersPage() {
               />
             </div>
 
-            <div className="sm:col-span-2 flex items-center gap-2">
-              <input
-                id="isSuper"
-                type="checkbox"
-                className="h-4 w-4 border-slate-300 rounded"
-                checked={isSuper}
-                onChange={(e) => setIsSuper(e.target.checked)}
-              />
-              <label
-                htmlFor="isSuper"
-                className="text-sm text-slate-700 select-none"
-              >
-                Super admin
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-slate-700">
+                Role
               </label>
+              <select
+                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="ADMIN">Admin (one market)</option>
+                <option value="SUPER_ADMIN">Super admin (all markets)</option>
+              </select>
             </div>
+
+            {role === "ADMIN" && (
+              <div className="sm:col-span-1">
+                <label className="block text-sm font-medium text-slate-700">
+                  Market
+                </label>
+                <select
+                  className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                  value={marketId}
+                  onChange={(e) => setMarketId(e.target.value)}
+                >
+                  {markets.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div className="sm:col-span-2">
               <button
@@ -325,13 +359,13 @@ export default function AdminUsersPage() {
                         </td>
 
                         <td className="py-2 px-3">
-                          {a.isSuper ? (
+                          {a.role === "SUPER_ADMIN" ? (
                             <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               SUPER
                             </span>
                           ) : (
                             <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                              ADMIN
+                              {a.market?.code?.toUpperCase() || "ADMIN"}
                             </span>
                           )}
                         </td>

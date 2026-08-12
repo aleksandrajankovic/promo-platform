@@ -1,7 +1,9 @@
 // src/app/page.js
+import { notFound } from "next/navigation";
 import CalendarPageView from "@/components/calendar/CalendarPageView";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { resolveMarketByHost } from "@/lib/marketScope";
 import {
   buildCalendarMetadata,
   loadCalendarPageData,
@@ -11,8 +13,11 @@ import {
 } from "@/lib/calendar/calendarPage";
 
 export async function generateMetadata() {
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) return {};
   const now = new Date();
-  return buildCalendarMetadata(now.getFullYear(), now.getMonth());
+  return buildCalendarMetadata(market, now.getFullYear(), now.getMonth());
 }
 
 function getParam(sp, key) {
@@ -36,6 +41,10 @@ export default async function Home({ searchParams }) {
     // nevalidni parametri — ignoriši ih i prikaži tekući mesec na "/"
   }
 
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) notFound();
+
   const cookieStore = await cookies();
   const adminCookie = cookieStore.get("admin_auth");
   const isAdmin = !!adminCookie?.value;
@@ -43,9 +52,9 @@ export default async function Home({ searchParams }) {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
-  const lang = "sr";
+  const lang = market.defaultLocale || "sr";
 
-  const data = await loadCalendarPageData({ year, month, isAdmin, lang });
+  const data = await loadCalendarPageData({ market, year, month, isAdmin, lang });
 
   return (
     <CalendarPageView

@@ -17,6 +17,7 @@ export default function CalendarPageView({
   today,
   weekly,
   specials,
+  baseUrl,
   logoUrl,
   bgImageUrl,
   bgImageUrlMobile,
@@ -46,7 +47,7 @@ export default function CalendarPageView({
 
   return (
     <>
-      <CalendarJsonLd specials={specials} />
+      <CalendarJsonLd specials={specials} baseUrl={baseUrl} />
 
       {/* Preload hero pozadine — ubrzava LCP jer browser inače otkriva CSS background-image tek posle CSSOM parsinga */}
       <link rel="preload" as="image" href={bgImageUrl} media="(min-width: 768px)" fetchPriority="high" />

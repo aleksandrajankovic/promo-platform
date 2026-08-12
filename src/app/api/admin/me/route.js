@@ -13,7 +13,14 @@ export async function GET(req) {
 
     const admin = await prisma.adminUser.findUnique({
       where: { id: session.adminId },
-      select: { id: true, name: true, email: true, isSuper: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        marketId: true,
+        market: { select: { code: true, name: true } },
+      },
     });
 
     if (!admin) {

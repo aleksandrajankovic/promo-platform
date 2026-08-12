@@ -7,7 +7,11 @@ import { monthHref } from "@/lib/calendar/calendarUrls";
 
 export * from "@/lib/calendar/calendarUrls";
 
-export const BASE_URL = "https://calendar.meridianbet.rs";
+// Fallback samo za slučaj da market.domain nedostaje (ne bi trebalo da se
+// desi u produkciji — svaki Market koji ima kalendar mora imati domain).
+export function getBaseUrl(market) {
+  return market?.domain ? `https://${market.domain}` : "https://calendar.meridianbet.rs";
+}
 
 export const MONTH_NAMES_SR = [
   "Januar", "Februar", "Mart", "April", "Maj", "Jun",
@@ -75,12 +79,14 @@ function normalizeSpecials(rows = [], lang) {
   });
 }
 
-// Keširani DB upiti za promo sadržaj — 5 minuta (settings se uvek čitaju sveže)
+// Keširani DB upiti za promo sadržaj — 5 minuta (settings se uvek čitaju sveže).
+// marketId je deo argumenata pa je automatski deo cache ključa — različita
+// tržišta nikad ne dele isti keširan unos.
 export const getPromoData = unstable_cache(
-  async (year, month) => {
+  async (marketId, year, month) => {
     const [weeklyPlanRows, specialRows] = await Promise.all([
-      prisma.weeklyPlan.findMany({ where: { year, month }, orderBy: { weekday: "asc" } }),
-      prisma.specialPromotion.findMany({ where: { year, month }, orderBy: [{ day: "asc" }] }),
+      prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
+      prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
     ]);
     return { weeklyPlanRows, specialRows };
   },
@@ -89,7 +95,7 @@ export const getPromoData = unstable_cache(
 );
 
 // Vraća {y, m} najbližeg meseca sa promocijama u datom smeru, preskačući neaktivne mesece
-export async function findNearestMonthWithPromos(currentY, currentM, direction, inactiveSet = new Set()) {
+export async function findNearestMonthWithPromos(marketId, currentY, currentM, direction, inactiveSet = new Set()) {
   const isNext = direction === "next";
 
   const dirFilter = isNext
@@ -100,8 +106,8 @@ export async function findNearestMonthWithPromos(currentY, currentM, direction, 
     : [{ year: "desc" }, { month: "desc" }];
 
   const [special, plan] = await Promise.all([
-    prisma.specialPromotion.findFirst({ where: { active: true, ...dirFilter }, orderBy: dirOrder }),
-    prisma.weeklyPlan.findFirst({ where: { active: true, ...dirFilter }, orderBy: dirOrder }),
+    prisma.specialPromotion.findFirst({ where: { marketId, active: true, ...dirFilter }, orderBy: dirOrder }),
+    prisma.weeklyPlan.findFirst({ where: { marketId, active: true, ...dirFilter }, orderBy: dirOrder }),
   ]);
 
   if (!special && !plan) return null;
@@ -118,7 +124,7 @@ export async function findNearestMonthWithPromos(currentY, currentM, direction, 
 
   // Ako je kandidat deaktiviran, traži sledeći u istom smeru
   if (inactiveSet.has(`${candidate.y}-${candidate.m}`)) {
-    return findNearestMonthWithPromos(candidate.y, candidate.m, direction, inactiveSet);
+    return findNearestMonthWithPromos(marketId, candidate.y, candidate.m, direction, inactiveSet);
   }
 
   return candidate;
@@ -127,12 +133,14 @@ export async function findNearestMonthWithPromos(currentY, currentM, direction, 
 // -------------------------
 // METADATA
 // -------------------------
-export async function buildCalendarMetadata(year, month) {
+export async function buildCalendarMetadata(market, year, month) {
+  const BASE_URL = getBaseUrl(market);
   const canonical = `${BASE_URL}${monthHref(year, month)}`;
+  const lang = market?.defaultLocale || "sr";
 
   // seoMeta from DB overrides the auto-generated per-month title/description
-  const settings = await prisma.calendarSettings.findFirst();
-  const seo = settings?.seoMeta?.sr || {};
+  const settings = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
+  const seo = settings?.seoMeta?.[lang] || {};
 
   const monthSr = MONTH_NAMES_SR[month];
   const title = seo.title || `Kalendar Promocija ${monthSr} ${year} | Meridianbet`;
@@ -145,7 +153,7 @@ export async function buildCalendarMetadata(year, month) {
     description,
     alternates: {
       canonical,
-      languages: { sr: canonical, "x-default": canonical },
+      languages: { [lang]: canonical, "x-default": canonical },
     },
     openGraph: {
       url: canonical,
@@ -172,9 +180,12 @@ export async function buildCalendarMetadata(year, month) {
 // -------------------------
 // PODACI ZA STRANICU
 // -------------------------
-export async function loadCalendarPageData({ year, month, isAdmin, lang = "sr" }) {
+export async function loadCalendarPageData({ market, year, month, isAdmin, lang }) {
+  const marketId = market.id;
+  const resolvedLang = lang || market.defaultLocale || "sr";
+
   // CalendarSettings se uvek čita sveže (inactive flag mora biti trenutan)
-  const calendarSettings = await prisma.calendarSettings.findFirst();
+  const calendarSettings = await prisma.calendarSettings.findUnique({ where: { marketId } });
   const monthBgs = calendarSettings?.monthBackgrounds || {};
 
   // Redirect korisnika sa deaktiviranog meseca
@@ -185,8 +196,8 @@ export async function loadCalendarPageData({ year, month, isAdmin, lang = "sr" }
         .map(([k]) => k)
     );
     const nearest =
-      (await findNearestMonthWithPromos(year, month, "next", inactiveSet)) ||
-      (await findNearestMonthWithPromos(year, month, "prev", inactiveSet));
+      (await findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet)) ||
+      (await findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet));
     if (nearest) redirect(monthHref(nearest.y, nearest.m));
   }
 
@@ -194,14 +205,14 @@ export async function loadCalendarPageData({ year, month, isAdmin, lang = "sr" }
   const { weeklyPlanRows, specialRows } = isAdmin
     ? await (async () => {
         const [weeklyPlanRows, specialRows] = await Promise.all([
-          prisma.weeklyPlan.findMany({ where: { year, month }, orderBy: { weekday: "asc" } }),
-          prisma.specialPromotion.findMany({ where: { year, month }, orderBy: [{ day: "asc" }] }),
+          prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
+          prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
         ]);
         return { weeklyPlanRows, specialRows };
       })()
-    : await getPromoData(year, month);
+    : await getPromoData(marketId, year, month);
 
-  const planned = normWeeklyRows(weeklyPlanRows, lang);
+  const planned = normWeeklyRows(weeklyPlanRows, resolvedLang);
 
   const weekly = Array.from(
     { length: 7 },
@@ -218,7 +229,7 @@ export async function loadCalendarPageData({ year, month, isAdmin, lang = "sr" }
       }
   );
 
-  const specials = normalizeSpecials(specialRows, lang);
+  const specials = normalizeSpecials(specialRows, resolvedLang);
 
   const logoUrl = calendarSettings?.logoUrl || "/img/meridianbet-ng.png";
 
@@ -233,7 +244,7 @@ export async function loadCalendarPageData({ year, month, isAdmin, lang = "sr" }
   // naslov kalendara — per-month override > global calendarTitle > hardcoded fallback
   const monthTitle = monthBg.titleSr;
   const globalTitles = calendarSettings?.calendarTitle || {};
-  const calendarTitle = monthTitle || globalTitles["sr"] || "PRAZNIČNE MISIJE";
+  const calendarTitle = monthTitle || globalTitles[resolvedLang] || globalTitles.sr || "PRAZNIČNE MISIJE";
 
   // tema kalendara — per-month override > global default
   const theme = monthBg.theme || calendarSettings?.theme || "default";
@@ -258,13 +269,14 @@ export async function loadCalendarPageData({ year, month, isAdmin, lang = "sr" }
 
   // Pagination for months — preskačemo deaktivovane mesece
   const [prevMonth, nextMonth] = await Promise.all([
-    findNearestMonthWithPromos(year, month, "prev", inactiveSet),
-    findNearestMonthWithPromos(year, month, "next", inactiveSet),
+    findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet),
+    findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet),
   ]);
 
   return {
     weekly,
     specials,
+    baseUrl: getBaseUrl(market),
     logoUrl,
     bgImageUrl,
     bgImageUrlMobile,

@@ -1,24 +1,32 @@
 // src/app/sitemap.js
+import { headers } from "next/headers";
 import prisma from "@/lib/db";
-import { BASE_URL, monthHref } from "@/lib/calendar/calendarPage";
+import { resolveMarketByHost } from "@/lib/marketScope";
+import { getBaseUrl, monthHref } from "@/lib/calendar/calendarPage";
 
 // Bez ovoga Next generiše sitemap samo jednom, u build-u — novi/izmenjeni
 // specijali dodati preko admin panela se ne bi videli do sledećeg deploy-a.
 export const revalidate = 3600; // 1h
 
 export default async function sitemap() {
+  const h = await headers();
+  const market = await resolveMarketByHost(h.get("host"));
+  if (!market) return [];
+
+  const BASE_URL = getBaseUrl(market);
+
   const [weeklyMonths, specialMonths, settings] = await Promise.all([
     prisma.weeklyPlan.findMany({
-      where: { active: true },
+      where: { marketId: market.id, active: true },
       select: { year: true, month: true },
       distinct: ["year", "month"],
     }),
     prisma.specialPromotion.findMany({
-      where: { active: true },
+      where: { marketId: market.id, active: true },
       select: { year: true, month: true },
       distinct: ["year", "month"],
     }),
-    prisma.calendarSettings.findFirst(),
+    prisma.calendarSettings.findUnique({ where: { marketId: market.id } }),
   ]);
 
   const monthBgs = settings?.monthBackgrounds || {};
