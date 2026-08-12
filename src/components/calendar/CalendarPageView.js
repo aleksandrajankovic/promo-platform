@@ -14,6 +14,8 @@ export default function CalendarPageView({
   month,
   isAdmin,
   lang,
+  locale,
+  defaultLocale,
   today,
   weekly,
   specials,
@@ -153,6 +155,8 @@ export default function CalendarPageView({
                   month={month}
                   prevMonth={prevMonth}
                   nextMonth={nextMonth}
+                  locale={locale}
+                  defaultLocale={defaultLocale}
                   className="text-sm"
                 />
               </div>
@@ -183,6 +187,8 @@ export default function CalendarPageView({
                 month={month}
                 prevMonth={prevMonth}
                 nextMonth={nextMonth}
+                locale={locale}
+                defaultLocale={defaultLocale}
                 className="text-base"
                 labelClassName={theme === "football" ? bebasNeue.className : ""}
               />

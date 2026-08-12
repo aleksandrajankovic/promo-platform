@@ -3,7 +3,7 @@
 import prisma from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
-import { monthHref } from "@/lib/calendar/calendarUrls";
+import { localeMonthHref } from "@/lib/calendar/calendarUrls";
 
 export * from "@/lib/calendar/calendarUrls";
 
@@ -133,14 +133,15 @@ export async function findNearestMonthWithPromos(marketId, currentY, currentM, d
 // -------------------------
 // METADATA
 // -------------------------
-export async function buildCalendarMetadata(market, year, month) {
+export async function buildCalendarMetadata(market, year, month, lang) {
   const BASE_URL = getBaseUrl(market);
-  const canonical = `${BASE_URL}${monthHref(year, month)}`;
-  const lang = market?.defaultLocale || "sr";
+  const defaultLocale = market?.defaultLocale || "sr";
+  const resolvedLang = lang || defaultLocale;
+  const canonical = `${BASE_URL}${localeMonthHref(resolvedLang, defaultLocale, year, month)}`;
 
   // seoMeta from DB overrides the auto-generated per-month title/description
   const settings = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
-  const seo = settings?.seoMeta?.[lang] || {};
+  const seo = settings?.seoMeta?.[resolvedLang] || {};
 
   const monthSr = MONTH_NAMES_SR[month];
   const title = seo.title || `Kalendar Promocija ${monthSr} ${year} | Meridianbet`;
@@ -148,12 +149,21 @@ export async function buildCalendarMetadata(market, year, month) {
     seo.description ||
     `Otkrijte dnevne promocije za ${monthSr} ${year}. Iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.`;
 
+  // hreflang: jedan alternate po jeziku tržišta, ne samo trenutni — ako tržište
+  // ima samo jedan jezik, ovo se svodi na isto ponašanje kao pre (jedan unos).
+  const locales = market?.locales?.length ? market.locales : [defaultLocale];
+  const languages = {};
+  for (const loc of locales) {
+    languages[loc] = `${BASE_URL}${localeMonthHref(loc, defaultLocale, year, month)}`;
+  }
+  languages["x-default"] = `${BASE_URL}${localeMonthHref(defaultLocale, defaultLocale, year, month)}`;
+
   return {
     title,
     description,
     alternates: {
       canonical,
-      languages: { [lang]: canonical, "x-default": canonical },
+      languages,
     },
     openGraph: {
       url: canonical,
@@ -198,7 +208,7 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     const nearest =
       (await findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet)) ||
       (await findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet));
-    if (nearest) redirect(monthHref(nearest.y, nearest.m));
+    if (nearest) redirect(localeMonthHref(resolvedLang, market.defaultLocale || "sr", nearest.y, nearest.m));
   }
 
   // Load promo data — admin dobija live podatke, korisnici keširane (5 min)

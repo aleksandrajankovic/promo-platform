@@ -12,15 +12,36 @@ export class MarketScopeError extends Error {
   }
 }
 
+function getCookieValue(cookieHeader, name) {
+  const header = cookieHeader || "";
+  const match = header.match(new RegExp(`${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // Javne stranice (kalendar, sitemap) — tržište se određuje po domenu na koji
-// je request stigao. DEV_DEFAULT_MARKET je fallback za lokalni razvoj gde
-// hostname (localhost) ne odgovara nijednom pravom Market.domain.
-export async function resolveMarketByHost(hostHeader) {
+// je request stigao. To je i jedino relevantno u produkciji: svaki market ima
+// svoj pravi domen, ne postoji "biranje" tržišta na javnoj strani.
+//
+// Van produkcije (lokalni razvoj, gde host uvek ostaje localhost) dodata su
+// dva fallback-a, u redosledu: (1) admin_market kolačić — da front lokalno
+// prati tržište koje trenutno biraš u admin market switcher-u, bez potrebe
+// da se .env menja i server restartuje za svaku proveru; (2) DEV_DEFAULT_MARKET
+// iz .env, ako kolačić uopšte nije postavljen. Nijedan od ova dva fallback-a
+// se ne primenjuje kad je NODE_ENV=production — pravi posetioci nikad ne bi
+// smeli da im admin kolačić (ako ga slučajno imaju) promeni šta vide.
+export async function resolveMarketByHost(hostHeader, cookieHeader) {
   const hostname = (hostHeader || "").split(":")[0].toLowerCase();
 
   let market = hostname
     ? await prisma.market.findUnique({ where: { domain: hostname } })
     : null;
+
+  if (!market && process.env.NODE_ENV !== "production") {
+    const cookieCode = getCookieValue(cookieHeader, "admin_market");
+    if (cookieCode) {
+      market = await prisma.market.findUnique({ where: { code: cookieCode } });
+    }
+  }
 
   if (!market && process.env.DEV_DEFAULT_MARKET) {
     market = await prisma.market.findUnique({
@@ -29,12 +50,6 @@ export async function resolveMarketByHost(hostHeader) {
   }
 
   return market;
-}
-
-function getCookie(req, name) {
-  const header = req.headers.get("cookie") || "";
-  const match = header.match(new RegExp(`${name}=([^;]+)`));
-  return match ? decodeURIComponent(match[1]) : null;
 }
 
 // Admin/API rute — vraća { session, market }. Za ADMIN, market je uvek
@@ -66,7 +81,7 @@ export async function requireAdminMarket(req) {
   }
 
   const { searchParams } = new URL(req.url);
-  const code = searchParams.get("market") || getCookie(req, "admin_market");
+  const code = searchParams.get("market") || getCookieValue(req.headers.get("cookie"), "admin_market");
   if (!code) {
     throw new MarketScopeError("super admin must specify ?market=", 400);
   }

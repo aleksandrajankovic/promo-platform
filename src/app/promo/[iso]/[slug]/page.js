@@ -55,7 +55,7 @@ const resolveDayEntry = cache(async (market, iso, isAdmin) => {
 export async function generateMetadata({ params }) {
   const p = await params;
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"));
+  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
   if (!market) return {};
 
   const resolved = await resolveDayEntry(market, p.iso, false);
@@ -99,7 +99,7 @@ export default async function PromoDetailPage({ params }) {
   const p = await params;
 
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"));
+  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
   if (!market) notFound();
 
   const cookieStore = await cookies();

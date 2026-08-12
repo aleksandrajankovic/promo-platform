@@ -22,7 +22,7 @@ const DEFAULT_DESCRIPTION =
 
 export async function generateMetadata() {
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"));
+  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
   const baseUrl = getBaseUrl(market);
   const lang = market?.defaultLocale || "sr";
 
@@ -62,7 +62,7 @@ export async function generateMetadata() {
 
 export default async function RootLayout({ children }) {
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"));
+  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
   const baseUrl = getBaseUrl(market);
   const lang = market?.defaultLocale || "sr";
 

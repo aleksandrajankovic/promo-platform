@@ -2,7 +2,7 @@
 import { headers } from "next/headers";
 import prisma from "@/lib/db";
 import { resolveMarketByHost } from "@/lib/marketScope";
-import { getBaseUrl, monthHref } from "@/lib/calendar/calendarPage";
+import { getBaseUrl, localeMonthHref } from "@/lib/calendar/calendarPage";
 
 // Bez ovoga Next generiše sitemap samo jednom, u build-u — novi/izmenjeni
 // specijali dodati preko admin panela se ne bi videli do sledećeg deploy-a.
@@ -10,7 +10,7 @@ export const revalidate = 3600; // 1h
 
 export default async function sitemap() {
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"));
+  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
   if (!market) return [];
 
   const BASE_URL = getBaseUrl(market);
@@ -40,7 +40,10 @@ export default async function sitemap() {
     months.push({ year, month });
   }
 
-  // "/" (tekući mesec) uvek ide prvo, sa najvišim prioritetom
+  const defaultLocale = market.defaultLocale || "sr";
+  const locales = market.locales?.length ? market.locales : [defaultLocale];
+
+  // "/" (tekući mesec, default jezik) uvek ide prvo, sa najvišim prioritetom
   const urlMap = new Map();
   urlMap.set(`${BASE_URL}/`, {
     url: `${BASE_URL}/`,
@@ -49,9 +52,11 @@ export default async function sitemap() {
   });
 
   for (const { year, month } of months) {
-    const url = `${BASE_URL}${monthHref(year, month)}`;
-    if (urlMap.has(url)) continue;
-    urlMap.set(url, { url, changeFrequency: "monthly", priority: 0.6 });
+    for (const loc of locales) {
+      const url = `${BASE_URL}${localeMonthHref(loc, defaultLocale, year, month)}`;
+      if (urlMap.has(url)) continue;
+      urlMap.set(url, { url, changeFrequency: "monthly", priority: loc === defaultLocale ? 0.6 : 0.5 });
+    }
   }
 
   return Array.from(urlMap.values());

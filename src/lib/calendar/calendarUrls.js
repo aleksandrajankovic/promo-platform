@@ -27,6 +27,16 @@ export function monthHref(year, month, now = new Date()) {
   return isCurrentMonth(year, month, now) ? "/" : monthPath(year, month);
 }
 
+// Locale-svesna verzija: default jezik tržišta nikad ne dobija prefiks u URL-u
+// (isti "/" i "/[year]/[month]" kao i uvek — nula promene za jednojezična
+// tržišta), dok svaki drugi jezik dobija stvaran path segment ("/en", "/en/[year]/[month]").
+// To je namerno, ne query param (?lang=en) — path segment je jači SEO signal.
+export function localeMonthHref(locale, defaultLocale, year, month, now = new Date()) {
+  const isDefault = !locale || locale === defaultLocale;
+  const base = isCurrentMonth(year, month, now) ? "" : monthPath(year, month);
+  return isDefault ? (base || "/") : `/${locale}${base}`;
+}
+
 export function isValidYear(year) {
   return Number.isInteger(year) && year >= MIN_YEAR && year <= maxYear();
 }
