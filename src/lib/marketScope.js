@@ -41,17 +41,28 @@ function getCookie(req, name) {
 // session.marketId (klijent ne može da ga promeni). Za SUPER_ADMIN, market
 // dolazi iz ?market= (eksplicitno) ili admin_market kolačića (zapamćen izbor
 // iz market switcher-a), u tom redosledu prioriteta.
+//
+// role/marketId se NE veruju iz JWT payload-a — čitaju se sveže iz baze na
+// svaki poziv. Token može da živi do 8h; ako se admin-u u međuvremenu
+// promeni tržište (ili ga neko unapredi u super admina), promena mora da
+// važi odmah, ne tek posle ponovnog logina.
 export async function requireAdminMarket(req) {
   const session = await getAdminFromRequest(req);
   if (!session) throw new MarketScopeError("unauthorized", 401);
 
-  if (session.role !== "SUPER_ADMIN") {
-    if (!session.marketId) {
+  const admin = await prisma.adminUser.findUnique({
+    where: { id: session.adminId },
+    select: { role: true, marketId: true },
+  });
+  if (!admin) throw new MarketScopeError("unauthorized", 401);
+
+  if (admin.role !== "SUPER_ADMIN") {
+    if (!admin.marketId) {
       throw new MarketScopeError("admin has no assigned market", 403);
     }
-    const market = await prisma.market.findUnique({ where: { id: session.marketId } });
+    const market = await prisma.market.findUnique({ where: { id: admin.marketId } });
     if (!market) throw new MarketScopeError("assigned market not found", 500);
-    return { session, market };
+    return { session: { ...session, role: admin.role, marketId: admin.marketId }, market };
   }
 
   const { searchParams } = new URL(req.url);
@@ -63,6 +74,22 @@ export async function requireAdminMarket(req) {
   const market = await prisma.market.findUnique({ where: { code } });
   if (!market) throw new MarketScopeError("unknown market", 404);
   return { session, market };
+}
+
+// Rute koje nisu market-scoped (npr. upravljanje admin nalozima) ali i dalje
+// treba da provere ulogu — ista logika, sveže iz baze, ne iz JWT-a.
+export async function requireSuperAdminSession(req) {
+  const session = await getAdminFromRequest(req);
+  if (!session) throw new MarketScopeError("unauthorized", 401);
+
+  const admin = await prisma.adminUser.findUnique({
+    where: { id: session.adminId },
+    select: { role: true },
+  });
+  if (!admin) throw new MarketScopeError("unauthorized", 401);
+  if (admin.role !== "SUPER_ADMIN") throw new MarketScopeError("Forbidden", 403);
+
+  return session;
 }
 
 // Isto kao requireAdminMarket, ali vraća Response umesto da baci grešku —

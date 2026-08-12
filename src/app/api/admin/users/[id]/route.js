@@ -2,16 +2,14 @@
 export const runtime = "nodejs";
 
 import prisma from "@/lib/db";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireSuperAdminSession, MarketScopeError } from "@/lib/marketScope";
 
 // PATCH /api/admin/users/:id  -> edit name/email/role/market (samo super admin)
 export async function PATCH(req, { params }) {
   const { id: idParam } = await params;
 
   try {
-    const session = await getAdminFromRequest(req);
-    if (!session) return new Response("Unauthorized", { status: 401 });
-    if (session.role !== "SUPER_ADMIN") return new Response("Forbidden", { status: 403 });
+    await requireSuperAdminSession(req);
 
     const id = Number(idParam);
     if (!Number.isInteger(id)) return new Response("Bad id", { status: 400 });
@@ -53,6 +51,7 @@ export async function PATCH(req, { params }) {
 
     return Response.json(updated);
   } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("Update admin error:", err);
     return new Response("Error", { status: 500 });
   }
@@ -63,9 +62,7 @@ export async function DELETE(req, { params }) {
   const { id: idParam } = await params;
 
   try {
-    const session = await getAdminFromRequest(req);
-    if (!session) return new Response("Unauthorized", { status: 401 });
-    if (session.role !== "SUPER_ADMIN") return new Response("Forbidden", { status: 403 });
+    const session = await requireSuperAdminSession(req);
 
     const id = Number(idParam);
     if (!Number.isInteger(id)) return new Response("Bad id", { status: 400 });
@@ -89,6 +86,7 @@ export async function DELETE(req, { params }) {
     await prisma.adminUser.delete({ where: { id } });
     return new Response(null, { status: 204 });
   } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("Delete admin error:", err);
     return new Response("Error", { status: 500 });
   }

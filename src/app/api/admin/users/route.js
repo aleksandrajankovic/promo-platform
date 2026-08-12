@@ -3,14 +3,12 @@ export const runtime = "nodejs";
 
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireSuperAdminSession, MarketScopeError } from "@/lib/marketScope";
 
 // GET /api/admin/users  -> lista svih admina (samo super admin, vidi sva tržišta)
 export async function GET(req) {
   try {
-    const session = await getAdminFromRequest(req);
-    if (!session) return new Response("Unauthorized", { status: 401 });
-    if (session.role !== "SUPER_ADMIN") return new Response("Forbidden", { status: 403 });
+    await requireSuperAdminSession(req);
 
     const admins = await prisma.adminUser.findMany({
       orderBy: { id: "asc" },
@@ -28,6 +26,7 @@ export async function GET(req) {
 
     return Response.json(admins);
   } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("List admins error:", err);
     return new Response("Error", { status: 500 });
   }
@@ -35,9 +34,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const session = await getAdminFromRequest(req);
-    if (!session) return new Response("Unauthorized", { status: 401 });
-    if (session.role !== "SUPER_ADMIN") return new Response("Forbidden", { status: 403 });
+    await requireSuperAdminSession(req);
 
     const body = await req.json().catch(() => ({}));
     let { name, email, password, role, marketId } = body;
@@ -74,6 +71,7 @@ export async function POST(req) {
 
     return Response.json(newAdmin, { status: 201 });
   } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("Create admin error:", err);
     return new Response("Error", { status: 500 });
   }
