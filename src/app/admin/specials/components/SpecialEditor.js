@@ -50,6 +50,7 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       icon: initial?.icon ?? "",
       active: initial?.active ?? true,
       scratch: !!initial?.scratch,
+      flipCard: !!initial?.flipCard,
       buttonColor: initial?.buttonColor ?? "green",
 
       translations: baseTranslations,
@@ -174,6 +175,7 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
 
         active: !!form.active,
         scratch: !!form.scratch,
+        flipCard: !!form.flipCard,
         buttonColor: form.buttonColor || "green",
 
         translations,
@@ -319,6 +321,18 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
               onChange={(e) => set("scratch", e.target.checked)}
             />
             Enable scratch card
+          </label>
+        </div>
+
+        {/* Flip card toggle */}
+        <div className="pb-2">
+          <label className="flex items-center gap-2 text-sm text-neutral-800">
+            <input
+              type="checkbox"
+              checked={!!form.flipCard}
+              onChange={(e) => set("flipCard", e.target.checked)}
+            />
+            Enable flip card
           </label>
         </div>
 

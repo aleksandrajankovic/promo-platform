@@ -99,6 +99,7 @@ model WeeklyPlan {
   richHtml    String?
   buttonColor String   @default("green")
   scratch     Boolean  @default(false)
+  flipCard    Boolean  @default(false)
 
   translations Json?
   category     PromoCategory @default(ALL)

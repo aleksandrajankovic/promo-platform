@@ -37,6 +37,7 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
     return {
       ...initial,
       scratch: !!initial?.scratch,
+      flipCard: !!initial?.flipCard,
       translations: initial?.translations || {},
       buttonColor: initial?.buttonColor || "green",
       category: initial?.category || "ALL",
@@ -152,6 +153,7 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
         richHtml: mainT.richHtml || "",
 
         scratch: !!form.scratch,
+        flipCard: !!form.flipCard,
         subtitle: form.subtitle ?? "",
         image: form.image ?? "",
         icon: form.icon ?? "",
@@ -283,6 +285,16 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
             onChange={(e) => setField("scratch", e.target.checked)}
           />
           Enable scratch card
+        </label>
+
+        {/* Flip card toggle */}
+        <label className="flex items-center gap-2 text-sm text-neutral-800">
+          <input
+            type="checkbox"
+            checked={!!form.flipCard}
+            onChange={(e) => setField("flipCard", e.target.checked)}
+          />
+          Enable flip card
         </label>
 
         {/* Form fields */}
