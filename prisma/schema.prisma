@@ -6,6 +6,7 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
 enum PromoCategory {
   SPORT
   CASINO
@@ -16,8 +17,31 @@ enum PromoCategory {
   SEMI_FINAL
   FINAL
 }
+
+enum Role {
+  ADMIN
+  SUPER_ADMIN
+}
+
+model Market {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  domain        String?  @unique
+  locales       String[]
+  defaultLocale String?
+  active        Boolean  @default(true)
+
+  calendarSettings  CalendarSettings[]
+  specialPromotions SpecialPromotion[]
+  weeklyPlans       WeeklyPlan[]
+  admins            AdminUser[]
+}
+
 model CalendarSettings {
-  id                 Int      @id
+  id                 Int      @id @default(autoincrement())
+  marketId           String
+  market             Market   @relation(fields: [marketId], references: [id])
   bgImageUrl         String?
   bgImageUrlMobile   String?
   monthBackgrounds   Json?
@@ -30,9 +54,14 @@ model CalendarSettings {
   countdownLabel     String?
   leaderboard        Json?
   updatedAt          DateTime @updatedAt
+
+  @@unique([marketId])
 }
+
 model SpecialPromotion {
   id            Int      @id @default(autoincrement())
+  marketId      String
+  market        Market   @relation(fields: [marketId], references: [id])
   year          Int
   month         Int
   day           Int
@@ -45,14 +74,19 @@ model SpecialPromotion {
   rich          Json?
   richHtml      String?
   scratch       Boolean  @default(false)
+  flipCard      Boolean  @default(false)
   knockoutPhase String?
 
   translations Json?
   category     PromoCategory @default(ALL)
+
+  @@index([marketId, year, month])
 }
 
 model WeeklyPlan {
   id          Int      @id @default(autoincrement())
+  marketId    String
+  market      Market   @relation(fields: [marketId], references: [id])
   year        Int
   month       Int
   weekday     Int
@@ -68,7 +102,8 @@ model WeeklyPlan {
 
   translations Json?
   category     PromoCategory @default(ALL)
-  @@unique([year, month, weekday])
+
+  @@unique([marketId, year, month, weekday])
 }
 
 model AdminUser {
@@ -76,7 +111,9 @@ model AdminUser {
   name         String
   email        String   @unique
   passwordHash String
-  isSuper      Boolean  @default(false)
+  role         Role     @default(ADMIN)
+  marketId     String?
+  market       Market?  @relation(fields: [marketId], references: [id])
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
