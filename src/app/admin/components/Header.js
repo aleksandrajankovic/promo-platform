@@ -4,9 +4,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+function getCookie(name) {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 export default function AdminHeader() {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [markets, setMarkets] = useState([]);
+  const [currentMarket, setCurrentMarket] = useState("");
 
   // povuci ulogovanog admina
   useEffect(() => {
@@ -16,12 +24,38 @@ export default function AdminHeader() {
         if (!res.ok) return;
         const data = await res.json();
         setUser(data);
+
+        // Super admin bira tržište; obični admin je zaključan na svoje.
+        if (data.role === "SUPER_ADMIN") {
+          const marketsRes = await fetch("/api/admin/markets", { cache: "no-store" });
+          if (marketsRes.ok) {
+            const marketData = await marketsRes.json();
+            setMarkets(marketData);
+
+            const cookieMarket = getCookie("admin_market");
+            if (cookieMarket && marketData.some((m) => m.code === cookieMarket)) {
+              setCurrentMarket(cookieMarket);
+            } else if (marketData.length) {
+              // Nijedno tržište još nije izabrano (nova sesija) — postavi prvo kao default
+              // da postojeći fetch pozivi po admin stranicama ne padaju u grešku.
+              document.cookie = `admin_market=${marketData[0].code}; path=/; SameSite=Strict`;
+              setCurrentMarket(marketData[0].code);
+            }
+          }
+        }
       } catch (e) {
         console.error(e);
       }
     }
     loadMe();
   }, []);
+
+  function onMarketChange(e) {
+    const code = e.target.value;
+    document.cookie = `admin_market=${code}; path=/; SameSite=Strict`;
+    setCurrentMarket(code);
+    window.location.reload();
+  }
 
   async function doLogout() {
     try {
@@ -40,7 +74,24 @@ export default function AdminHeader() {
 
 
       <div className="flex items-stretch border-l border-[#C93A25]">
-  
+
+        {user?.role === "SUPER_ADMIN" && markets.length > 0 && (
+          <div className="flex items-center gap-2 px-3 border-r border-[#C93A25]">
+            <select
+              value={currentMarket}
+              onChange={onMarketChange}
+              className="bg-[#8f1707] text-white text-sm rounded px-2 py-1 border border-[#C93A25] focus:outline-none"
+              title="Tržište koje uređuješ"
+            >
+              {markets.map((m) => (
+                <option key={m.code} value={m.code}>
+                  {m.name} ({m.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 px-3">
    
           <div className="w-5 h-5 flex items-center justify-center">
