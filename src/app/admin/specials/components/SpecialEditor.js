@@ -1,9 +1,13 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import RichEditor from "@/components/admin-shared/RichEditor";
 import ImageGalleryModal from "../../components/ImageGalleryModal";
 import { monthHref } from "@/lib/calendar/calendarUrls";
+
+const LOCALE_LABELS = {
+  sr: "Srpski", en: "English", sw: "Swahili", pt: "Portuguese", ba: "Bosanski", el: "Greek",
+};
 
 // kategorije za promo
 const CATEGORIES = [
@@ -36,16 +40,6 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
 
     const baseTranslations = initial?.translations || {};
 
-    if (!baseTranslations["sr"]) {
-      baseTranslations["sr"] = {
-        title: initial?.title ?? "",
-        button: initial?.button ?? "",
-        rich: initial?.rich ?? null,
-        richHtml: initial?.richHtml ?? "",
-        link: initial?.link ?? "",
-      };
-    }
-
     return {
       id: initial?.id ?? null,
       year: y,
@@ -67,8 +61,48 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
 
   const [form, setForm] = useState(seed);
   const [saving, setSaving] = useState(false);
-  const activeLang = "sr";
+  const [market, setMarket] = useState(null);
+  const [activeLang, setActiveLang] = useState("sr");
   const [showIconGallery, setShowIconGallery] = useState(false);
+
+  // Tržište (i time koji jezici imaju smisla za ovaj editor) zavisi od toga
+  // koji je market trenutno izabran u admin market switcher-u — nije fiksno
+  // po fajlu kao ranije (svaki market je imao svoju kopiju editora).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/current-market")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        if (cancelled || !m) return;
+        setMarket(m);
+        setActiveLang(m.defaultLocale);
+
+        // Stari flat redovi (pre translations polja) — prebaci top-level
+        // title/richHtml/... u translations[defaultLocale] jednom, na otvaranju.
+        setForm((prev) => {
+          if (prev.translations?.[m.defaultLocale]) return prev;
+          if (!initial?.title && !initial?.richHtml) return prev;
+          return {
+            ...prev,
+            translations: {
+              ...prev.translations,
+              [m.defaultLocale]: {
+                title: initial?.title ?? "",
+                button: initial?.button ?? "",
+                rich: initial?.rich ?? null,
+                richHtml: initial?.richHtml ?? "",
+                link: initial?.link ?? "",
+              },
+            },
+          };
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
 
@@ -211,6 +245,26 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       </div>
 
       <div className="mt-6 bg-white border border-neutral-200 rounded-lg shadow-sm p-4 md:p-5 space-y-5">
+        {/* Jezički tabovi — samo kad tržište ima više od jednog jezika */}
+        {market?.locales?.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-neutral-100">
+            {market.locales.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setActiveLang(code)}
+                className={`px-3 py-1.5 text-xs border-b-2 ${
+                  activeLang === code
+                    ? "border-[#AC1C09] text-[#AC1C09] font-semibold"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900"
+                }`}
+              >
+                {LOCALE_LABELS[code] || code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Active toggle + Preview */}
         <div className="pb-2">
           <label className="flex items-center justify-between gap-2 text-sm text-neutral-800">
@@ -271,7 +325,9 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
         {/* Title + Date */}
         <div className="grid md:grid-cols-2 gap-4 text-neutral-800">
           <label className="block">
-            <span className="text-sm mb-1 inline-block">Title</span>
+            <span className="text-sm mb-1 inline-block">
+              Title{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+            </span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={currentT.title || ""}
@@ -309,7 +365,9 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
         {/* Button label + Button link + Button Color */}
         <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_auto] items-end">
           <label className="block text-sm text-neutral-800">
-            <span className="mb-1 inline-block">Button label</span>
+            <span className="mb-1 inline-block">
+              Button label{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+            </span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={currentT.button || ""}
@@ -320,7 +378,9 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
           </label>
 
           <label className="block text-sm text-neutral-800">
-            <span className="mb-1 inline-block">Button link</span>
+            <span className="mb-1 inline-block">
+              Button link{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+            </span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={currentT.link || ""}
@@ -484,7 +544,9 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
 
         {/* Rich text editor */}
         <div>
-          <span className="text-sm text-neutral-800 block mb-1.5">Description</span>
+          <span className="text-sm text-neutral-800 block mb-1.5">
+            Description{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+          </span>
           <div className="border border-[#D0D0D0] rounded">
             <RichEditor
               key={activeLang}

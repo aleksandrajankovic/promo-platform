@@ -6,6 +6,10 @@ import RichEditor from "@/components/admin-shared/RichEditor";
 import ImageGalleryModal from "../../components/ImageGalleryModal";
 import { monthHref } from "@/lib/calendar/calendarUrls";
 
+const LOCALE_LABELS = {
+  sr: "Srpski", en: "English", sw: "Swahili", pt: "Portuguese", ba: "Bosanski", el: "Greek",
+};
+
 const LABELS = [
   "Monday",
   "Tuesday",
@@ -30,22 +34,10 @@ const CATEGORIES = [
 
 export default function WeeklyEditor({ initial, onCancel, onSave }) {
   const seed = useMemo(() => {
-    const baseTranslations = initial?.translations || {};
-
-    if (!baseTranslations["sr"]) {
-      baseTranslations["sr"] = {
-        title: initial?.title ?? "",
-        button: initial?.button ?? "",
-        link: initial?.link ?? "",
-        rich: initial?.rich ?? null,
-        richHtml: initial?.richHtml ?? "",
-      };
-    }
-
     return {
       ...initial,
       scratch: !!initial?.scratch,
-      translations: baseTranslations,
+      translations: initial?.translations || {},
       buttonColor: initial?.buttonColor || "green",
       category: initial?.category || "ALL",
     };
@@ -53,12 +45,49 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
 
   const [form, setForm] = useState(seed);
   const [saving, setSaving] = useState(false);
-  const activeLang = "sr";
+  const [market, setMarket] = useState(null);
+  const [activeLang, setActiveLang] = useState("sr");
   const [showIconGallery, setShowIconGallery] = useState(false);
 
   useEffect(() => {
     setForm(seed);
   }, [seed]);
+
+  // Tržište (i time koji jezici imaju smisla) zavisi od trenutnog izbora u
+  // admin market switcher-u — nije fiksno po fajlu kao ranije.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/current-market")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => {
+        if (cancelled || !m) return;
+        setMarket(m);
+        setActiveLang(m.defaultLocale);
+
+        setForm((prev) => {
+          if (prev.translations?.[m.defaultLocale]) return prev;
+          if (!initial?.title && !initial?.richHtml) return prev;
+          return {
+            ...prev,
+            translations: {
+              ...prev.translations,
+              [m.defaultLocale]: {
+                title: initial?.title ?? "",
+                button: initial?.button ?? "",
+                link: initial?.link ?? "",
+                rich: initial?.rich ?? null,
+                richHtml: initial?.richHtml ?? "",
+              },
+            },
+          };
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -181,6 +210,26 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
       </div>
 
       <div className="mt-6 bg-white border border-neutral-200 rounded-lg shadow-sm p-4 md:p-5 space-y-4">
+        {/* Jezički tabovi — samo kad tržište ima više od jednog jezika */}
+        {market?.locales?.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-neutral-100">
+            {market.locales.map((code) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setActiveLang(code)}
+                className={`px-3 py-1.5 text-xs border-b-2 ${
+                  activeLang === code
+                    ? "border-[#AC1C09] text-[#AC1C09] font-semibold"
+                    : "border-transparent text-neutral-600 hover:text-neutral-900"
+                }`}
+              >
+                {LOCALE_LABELS[code] || code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-4">
           {/* Active toggle */}
           <label className="flex items-center gap-2 text-sm text-neutral-800">
@@ -240,7 +289,9 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
         <div className="grid md:grid-cols-2 gap-4">
           {/* Title (po jeziku) */}
           <label className="block text-sm text-neutral-800">
-            <span className="mb-1 inline-block">Title</span>
+            <span className="mb-1 inline-block">
+              Title{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+            </span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={currentT.title || ""}
@@ -254,7 +305,9 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
         <div className="flex flex-wrap items-end gap-4">
           {/* Button label (po jeziku) */}
           <label className="block text-sm text-neutral-800 flex-1 min-w-[180px]">
-            <span className="mb-1 inline-block">Button label</span>
+            <span className="mb-1 inline-block">
+              Button label{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+            </span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={currentT.button || ""}
@@ -266,7 +319,9 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
 
           {/* Button link (po jeziku) */}
           <label className="block text-sm text-neutral-800 flex-1 min-w-[180px]">
-            <span className="mb-1 inline-block">Button link</span>
+            <span className="mb-1 inline-block">
+              Button link{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+            </span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={currentT.link || ""}
@@ -403,7 +458,9 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
 
         {/* Rich text editor */}
         <div className="mt-2">
-          <span className="text-sm text-neutral-800 block mb-1.5">Description</span>
+          <span className="text-sm text-neutral-800 block mb-1.5">
+            Description{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
+          </span>
           <div className="border border-[#D0D0D0] rounded">
             <RichEditor
               key={activeLang} // remount kad promeniš jezik
