@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const markets = [
+  { code: "rs", name: "Srbija", domain: "calendar.meridianbet.rs", locales: ["sr"], defaultLocale: "sr" },
   { code: "tz", name: "Tanzania", domain: "calendar.meridianbet.co.tz", locales: ["sw", "en"], defaultLocale: "sw" },
   { code: "br", name: "Brazil", domain: "calendar.meridianbet.bet.br", locales: ["pt"], defaultLocale: "pt" },
   { code: "me", name: "Montenegro", domain: "calendar.meridianbet.me", locales: ["sr"], defaultLocale: "sr" },
