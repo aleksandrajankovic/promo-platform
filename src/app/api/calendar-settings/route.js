@@ -50,6 +50,11 @@ export async function PUT(req) {
 
   const body = await req.json().catch(() => ({}));
 
+  // Postojeći red — calendarTitle/seoMeta su JSON kolone sa po jednim ključem
+  // po jeziku; upisujemo samo ključ jezika koji se menja, ne ceo objekat,
+  // da izmena za jedan jezik ne obriše ono što je sačuvano za drugi.
+  const existing = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
+
   // Partial update — only touch fields present in the request body
   const patch = {};
 
@@ -66,11 +71,10 @@ export async function PUT(req) {
     patch.logoUrl = (body.logoUrl || "").trim() || null;
 
   if ("calendarTitle" in body) {
-    const t = body.calendarTitle;
-    patch.calendarTitle = {
-      sr: (typeof t?.sr === "string" ? t.sr.trim() : "") || "PRAZNIČNE MISIJE",
-      en: (typeof t?.en === "string" ? t.en.trim() : "") || "HOLIDAY MISSIONS",
-    };
+    const lang = market.defaultLocale || "sr";
+    const t = body.calendarTitle?.[lang] ?? body.calendarTitle?.sr ?? body.calendarTitle;
+    const title = (typeof t === "string" ? t.trim() : "") || "PRAZNIČNE MISIJE";
+    patch.calendarTitle = { ...(existing?.calendarTitle || {}), [lang]: title };
   }
 
   if ("theme" in body)
@@ -80,6 +84,7 @@ export async function PUT(req) {
     const lang = market.defaultLocale || "sr";
     const s = body.seoMeta?.[lang] ?? body.seoMeta;
     patch.seoMeta = {
+      ...(existing?.seoMeta || {}),
       [lang]: {
         title:       (typeof s?.title       === "string" ? s.title.trim()       : "") || DEFAULT_SEO_META.sr.title,
         description: (typeof s?.description === "string" ? s.description.trim() : "") || DEFAULT_SEO_META.sr.description,

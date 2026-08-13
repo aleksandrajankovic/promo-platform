@@ -20,6 +20,7 @@ export default function CalendarGrid({
   nextMonth = null,
   today,
   openDay = null,
+  timezone = "Europe/Belgrade",
 }) {
   const { cells, daysPayload } = buildCalendarData({
     year,
@@ -29,6 +30,7 @@ export default function CalendarGrid({
     adminPreview,
     lang,
     today: today ?? new Date(),
+    timezone,
   });
 
   const isFootball = theme === "football";

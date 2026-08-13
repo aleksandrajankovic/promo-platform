@@ -22,6 +22,8 @@ export default function CalendarPageView({
   weekly,
   specials,
   baseUrl,
+  mainSiteUrl,
+  timezone,
   logoUrl,
   bgImageUrl,
   bgImageUrlMobile,
@@ -51,7 +53,7 @@ export default function CalendarPageView({
 
   return (
     <>
-      <CalendarJsonLd specials={specials} baseUrl={baseUrl} />
+      <CalendarJsonLd specials={specials} baseUrl={baseUrl} mainSiteUrl={mainSiteUrl} />
 
       {/* Preload hero pozadine — ubrzava LCP jer browser inače otkriva CSS background-image tek posle CSSOM parsinga */}
       <link rel="preload" as="image" href={bgImageUrl} media="(min-width: 768px)" fetchPriority="high" />
@@ -67,7 +69,7 @@ export default function CalendarPageView({
           }
         >
           <a
-            href="https://meridianbet.rs"
+            href={mainSiteUrl}
             target="_blank"
             rel="noreferrer"
             aria-label="Meridianbet Calendar main site"
@@ -180,6 +182,7 @@ export default function CalendarPageView({
                 nextMonth={nextMonth}
                 today={today}
                 openDay={openDay}
+                timezone={timezone}
               />
             </div>
 

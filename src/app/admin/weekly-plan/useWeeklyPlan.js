@@ -35,11 +35,13 @@ export function useWeeklyPlan(year, month) {
         richHtml: payload.richHtml ?? "",
 
         active: !!payload.active,
+        scratch: !!payload.scratch,
+        flipCard: !!payload.flipCard,
         icon: payload.icon ?? "",
         buttonColor: payload.buttonColor ?? "green",
 
         translations: payload.translations || null,
-        defaultLang: payload.defaultLang || "pt",
+        defaultLang: payload.defaultLang,
         category: payload.category || "ALL",
       }),
     });

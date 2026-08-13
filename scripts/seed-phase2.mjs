@@ -4,12 +4,12 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 const markets = [
-  { code: "rs", name: "Srbija", domain: "calendar.meridianbet.rs", locales: ["sr"], defaultLocale: "sr" },
-  { code: "tz", name: "Tanzania", domain: "calendar.meridianbet.co.tz", locales: ["sw", "en"], defaultLocale: "sw" },
-  { code: "br", name: "Brazil", domain: "calendar.meridianbet.bet.br", locales: ["pt"], defaultLocale: "pt" },
-  { code: "me", name: "Montenegro", domain: "calendar.meridianbet.me", locales: ["sr"], defaultLocale: "sr" },
-  { code: "ba", name: "Bosnia", domain: "calendar.meridianbet.ba", locales: ["ba"], defaultLocale: "ba" },
-  { code: "com", name: "Meridianbet.com", domain: "calendar.meridianbet.com", locales: ["en"], defaultLocale: "en" },
+  { code: "rs", name: "Srbija", domain: "calendar.meridianbet.rs", locales: ["sr"], defaultLocale: "sr", timezone: "Europe/Belgrade" },
+  { code: "tz", name: "Tanzania", domain: "calendar.meridianbet.co.tz", locales: ["sw", "en"], defaultLocale: "sw", timezone: "Africa/Dar_es_Salaam" },
+  { code: "br", name: "Brazil", domain: "calendar.meridianbet.bet.br", locales: ["pt"], defaultLocale: "pt", timezone: "America/Sao_Paulo" },
+  { code: "me", name: "Montenegro", domain: "calendar.meridianbet.me", locales: ["sr"], defaultLocale: "sr", timezone: "Europe/Podgorica" },
+  { code: "ba", name: "Bosnia", domain: "calendar.meridianbet.ba", locales: ["ba"], defaultLocale: "ba", timezone: "Europe/Sarajevo" },
+  { code: "com", name: "Meridianbet.com", domain: "calendar.meridianbet.com", locales: ["en"], defaultLocale: "en", timezone: "Europe/Belgrade" },
 ];
 
 for (const m of markets) {

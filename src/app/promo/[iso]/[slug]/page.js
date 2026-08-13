@@ -41,6 +41,7 @@ const resolveDayEntry = cache(async (market, iso, isAdmin) => {
     adminPreview: isAdmin,
     lang,
     today: new Date(),
+    timezone: data.timezone,
   });
 
   const entry = daysPayload.find((e) => e.day === d);

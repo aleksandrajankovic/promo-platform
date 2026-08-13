@@ -3,7 +3,7 @@ function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-export default function CalendarJsonLd({ specials = [], baseUrl }) {
+export default function CalendarJsonLd({ specials = [], baseUrl, mainSiteUrl }) {
   const events = specials
     .filter((s) => s.active && s.title)
     .map((s) => {
@@ -22,7 +22,7 @@ export default function CalendarJsonLd({ specials = [], baseUrl }) {
         organizer: {
           "@type": "Organization",
           name: "Meridianbet",
-          url: "https://meridianbet.rs",
+          url: mainSiteUrl,
         },
       };
       if (s.link && s.link !== "#") event.url = s.link;

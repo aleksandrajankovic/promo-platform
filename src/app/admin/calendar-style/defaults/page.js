@@ -28,19 +28,27 @@ export default function DefaultSettingsPage() {
   const [saving, setSaving]                     = useState(false);
   const [showGallery, setShowGallery]           = useState(false);
   const [galleryTarget, setGalleryTarget]       = useState(null); // "desktop" | "mobile" | "logo"
+  // "sr" je samo placeholder dok se ne ucita pravo trziste — ne sme da ostane
+  // fiksno, jer /api/calendar-settings cuva seoMeta/calendarTitle pod
+  // market.defaultLocale ključem (npr. "pt" za BR), ne uvek pod "sr".
+  const [lang, setLang]                         = useState("sr");
 
   useEffect(() => {
-    fetch("/api/calendar-settings")
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then((d) => {
+    Promise.all([
+      fetch("/api/admin/current-market").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch("/api/calendar-settings").then((r) => (r.ok ? r.json() : Promise.reject(r.status))),
+    ])
+      .then(([market, d]) => {
+        const resolvedLang = market?.defaultLocale || "sr";
+        setLang(resolvedLang);
         setBgUrl(d.bgImageUrl || "/img/bg-calendar.png");
         setBgUrlMobile(d.bgImageUrlMobile || "/img/bg-calendar-mobile.png");
         setCalendarPosition(d.calendarPosition || "left");
-        setTitleSr(d.calendarTitle?.sr || "PRAZNIČNE MISIJE");
+        setTitleSr(d.calendarTitle?.[resolvedLang] || d.calendarTitle?.sr || "PRAZNIČNE MISIJE");
         setLogoUrl(d.logoUrl || "/img/meridianbet-ng.png");
         setTheme(d.theme || "default");
-        setSeoTitleSr(d.seoMeta?.sr?.title || "");
-        setSeoDescSr(d.seoMeta?.sr?.description || "");
+        setSeoTitleSr(d.seoMeta?.[resolvedLang]?.title || "");
+        setSeoDescSr(d.seoMeta?.[resolvedLang]?.description || "");
         setCountdownTargetIso(d.countdownTargetIso || "");
         setCountdownLabel(d.countdownLabel || "");
         setLeaderboardEnabled(!!d.leaderboard?.enabled);
@@ -72,10 +80,10 @@ export default function DefaultSettingsPage() {
           bgImageUrl: bgUrl,
           bgImageUrlMobile: bgUrlMobile,
           calendarPosition,
-          calendarTitle: { sr: titleSr },
+          calendarTitle: { [lang]: titleSr },
           logoUrl,
           theme,
-          seoMeta: { sr: { title: seoTitleSr, description: seoDescSr } },
+          seoMeta: { [lang]: { title: seoTitleSr, description: seoDescSr } },
           countdownTargetIso,
           countdownLabel,
           leaderboard: { enabled: leaderboardEnabled, feedUrl: leaderboardFeedUrl },
@@ -162,7 +170,7 @@ export default function DefaultSettingsPage() {
               </div>
               {titleSr && (
                 <div className="pt-2 border-t border-neutral-100">
-                  <p className="text-xs text-neutral-400 mb-1">Preview (SR):</p>
+                  <p className="text-xs text-neutral-400 mb-1">Preview ({lang.toUpperCase()}):</p>
                   <p className="text-2xl font-extrabold tracking-tight text-neutral-800">{titleSr}</p>
                 </div>
               )}
@@ -317,7 +325,7 @@ export default function DefaultSettingsPage() {
                 Meta title and description used in search engines and social previews. Overrides the auto-generated per-month metadata.
               </p>
               <label className="block">
-                <span className="mb-1 inline-block text-sm text-neutral-600">Meta title (SR)</span>
+                <span className="mb-1 inline-block text-sm text-neutral-600">Meta title ({lang.toUpperCase()})</span>
                 <input
                   className="w-full border border-[#D0D0D0] rounded px-2.5 py-2 text-sm"
                   value={seoTitleSr}
@@ -328,7 +336,7 @@ export default function DefaultSettingsPage() {
                 <span className="mt-0.5 text-xs text-neutral-400">{seoTitleSr.length}/120 characters</span>
               </label>
               <label className="block">
-                <span className="mb-1 inline-block text-sm text-neutral-600">Meta description (SR)</span>
+                <span className="mb-1 inline-block text-sm text-neutral-600">Meta description ({lang.toUpperCase()})</span>
                 <textarea
                   className="w-full border border-[#D0D0D0] rounded px-2.5 py-2 text-sm resize-none"
                   rows={3}

@@ -41,6 +41,7 @@ export function buildCalendarData({
   adminPreview = false,
   lang = "pt",
   today = new Date(),
+  timezone = "Europe/Belgrade",
 }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
@@ -67,7 +68,7 @@ export function buildCalendarData({
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day);
     const srbParts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Europe/Belgrade",
+      timeZone: timezone,
       year: "numeric", month: "2-digit", day: "2-digit",
     }).formatToParts(today);
     const srbY = parseInt(srbParts.find(p => p.type === "year").value);

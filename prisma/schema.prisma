@@ -30,6 +30,7 @@ model Market {
   domain        String?  @unique
   locales       String[]
   defaultLocale String?
+  timezone      String   @default("Europe/Belgrade")
   active        Boolean  @default(true)
 
   calendarSettings  CalendarSettings[]

@@ -14,6 +14,14 @@ export function getBaseUrl(market) {
   return market?.domain ? `https://${market.domain}` : "https://calendar.meridianbet.rs";
 }
 
+// Glavni betting sajt tržišta (logo link, organizer u JSON-LD) — market.domain
+// je kalendar poddomen ("calendar.meridianbet.rs"), glavni sajt je isti domen
+// bez tog prefiksa. Ovaj obrazac važi za svih 6 trenutnih tržišta.
+export function getMainSiteUrl(market) {
+  if (!market?.domain) return "https://meridianbet.rs";
+  return `https://${market.domain.replace(/^calendar\./, "")}`;
+}
+
 export const MONTH_NAMES_SR = [
   "Januar", "Februar", "Mart", "April", "Maj", "Jun",
   "Jul", "Avgust", "Septembar", "Oktobar", "Novembar", "Decembar",
@@ -293,6 +301,8 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     weekly,
     specials,
     baseUrl: getBaseUrl(market),
+    mainSiteUrl: getMainSiteUrl(market),
+    timezone: market.timezone || "Europe/Belgrade",
     logoUrl,
     bgImageUrl,
     bgImageUrlMobile,

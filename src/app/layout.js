@@ -3,7 +3,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { headers } from "next/headers";
 import { resolveMarketByHost } from "@/lib/marketScope";
-import { getBaseUrl } from "@/lib/calendar/calendarPage";
+import { getBaseUrl, getMainSiteUrl } from "@/lib/calendar/calendarPage";
 
 const roboto = Roboto({
   subsets: ["latin", "latin-ext", "cyrillic"],
@@ -70,7 +70,7 @@ export default async function RootLayout({ children }) {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Meridianbet",
-    url: "https://meridianbet.rs",
+    url: getMainSiteUrl(market),
     logo: `${baseUrl}/img/meridianbet-ng.png`,
   };
 
