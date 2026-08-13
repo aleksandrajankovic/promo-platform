@@ -4,6 +4,7 @@ import prisma from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { localeMonthHref } from "@/lib/calendar/calendarUrls";
+import { withRetry } from "@/lib/withRetry";
 
 export * from "@/lib/calendar/calendarUrls";
 
@@ -83,13 +84,14 @@ function normalizeSpecials(rows = [], lang) {
 // marketId je deo argumenata pa je automatski deo cache ključa — različita
 // tržišta nikad ne dele isti keširan unos.
 export const getPromoData = unstable_cache(
-  async (marketId, year, month) => {
-    const [weeklyPlanRows, specialRows] = await Promise.all([
-      prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
-      prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
-    ]);
-    return { weeklyPlanRows, specialRows };
-  },
+  async (marketId, year, month) =>
+    withRetry(async () => {
+      const [weeklyPlanRows, specialRows] = await Promise.all([
+        prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
+        prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
+      ]);
+      return { weeklyPlanRows, specialRows };
+    }),
   ["promo-data"],
   { revalidate: 300, tags: ["calendar"] }
 );
@@ -194,8 +196,12 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   const marketId = market.id;
   const resolvedLang = lang || market.defaultLocale || "sr";
 
-  // CalendarSettings se uvek čita sveže (inactive flag mora biti trenutan)
-  const calendarSettings = await prisma.calendarSettings.findUnique({ where: { marketId } });
+  // CalendarSettings se uvek čita sveže (inactive flag mora biti trenutan).
+  // Prvi upit na stranici — najverovatnije mesto da se pogodi Neon cold-start
+  // ako je baza bila neaktivna (autosuspend), zato ide kroz withRetry.
+  const calendarSettings = await withRetry(() =>
+    prisma.calendarSettings.findUnique({ where: { marketId } })
+  );
   const monthBgs = calendarSettings?.monthBackgrounds || {};
 
   // Redirect korisnika sa deaktiviranog meseca
