@@ -54,6 +54,7 @@ model CalendarSettings {
   countdownTargetIso String?
   countdownLabel     String?
   leaderboard        Json?
+  scratchCoverUrl    String?
   updatedAt          DateTime @updatedAt
 
   @@unique([marketId])

@@ -1,5 +1,5 @@
 // src/lib/calendarInteractions.js
-import { initScratch } from "./scratch/initScratch";
+import { initScratch, attachFlipListener } from "./scratch/initScratch";
 import { renderModalHTML } from "@/lib/calendar/promoModalHtml";
 import { monthHref } from "@/lib/calendar/calendarUrls";
 
@@ -17,6 +17,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
   const days = Array.isArray(payload.days) ? payload.days : [];
   const lang = payload.lang || "sr";
   const theme = payload.theme || "default";
+  const scratchCoverUrl = payload.scratchCoverUrl || "/img/scratchCard.png";
 
   const modal = root.querySelector("#promo-modal");
   const content = root.querySelector("#promo-content");
@@ -84,7 +85,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
   // ---- Open modal (with optional overlay fade + dialog delay) ----
 
   function openModal(entry, { overlayFadeDuration = 0, dialogDelay = 0 } = {}) {
-    content.innerHTML = renderModalHTML(entry, lang, theme);
+    content.innerHTML = renderModalHTML(entry, lang, theme, scratchCoverUrl);
     if (entry?.year != null && entry?.month != null && entry?.day) {
       window.dispatchEvent(new CustomEvent("mb-day-viewed", {
         detail: { year: entry.year, month: entry.month, day: entry.day },
@@ -120,6 +121,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
         requestAnimationFrame(() => {
           const canvas = document.getElementById("scratch-canvas");
           if (canvas) initScratch();
+          else if (document.getElementById("flip-card-inner")) attachFlipListener();
         })
       );
     }, dialogDelay);
@@ -257,6 +259,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
         previousUrl = monthHref(payload.year, payload.month);
         const canvas = document.getElementById("scratch-canvas");
         if (canvas) initScratch();
+        else if (document.getElementById("flip-card-inner")) attachFlipListener();
       } else {
         openModal(entry, { overlayFadeDuration: 200 });
       }

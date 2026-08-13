@@ -2,6 +2,23 @@
 import confetti from "canvas-confetti";
 import { markDayOpened } from "@/lib/calendar/calendarProgress";
 
+// Tap-to-flip na #flip-card-inner — DOM-only, radi i za scratch+flip i za
+// samostalnu flip karticu (bez scratch-a). Klikovi na ugnježdeni <a>/<button>
+// (CTA dugme na zadnjoj strani) se ignorišu da ne okrenu karticu nazad.
+export function attachFlipListener() {
+  const inner = document.getElementById("flip-card-inner");
+  if (!inner || inner.dataset.flipBound) return;
+  inner.dataset.flipBound = "1";
+
+  const hint = document.getElementById("flip-hint");
+
+  inner.onclick = (e) => {
+    if (e.target.closest("a, button")) return;
+    const flipped = inner.classList.toggle("is-flipped");
+    if (hint) hint.style.opacity = flipped ? "0" : "1";
+  };
+}
+
 function getAnonUserId() {
   try {
     let id = localStorage.getItem("anon_user_id");
@@ -29,6 +46,8 @@ export function initScratch() {
   const coverUrl = canvas.dataset.cover;
   const promoKey = canvas.dataset.key || "default";
   const theme = canvas.dataset.theme || "default";
+  const isFlip = canvas.dataset.flip === "1";
+  const bgImg = document.getElementById("scratch-bg-img");
 
   const userId = getAnonUserId();
   const storageKey = `scratch:${userId}:${promoKey}`;
@@ -51,6 +70,15 @@ export function initScratch() {
       "translate-y-0",
       "pointer-events-auto"
     );
+
+    if (isFlip) {
+      attachFlipListener();
+      const hint = document.getElementById("flip-hint");
+      if (hint) hint.style.opacity = "1";
+      // Prednja strana flip kartice je ista slika kao scratch pozadina —
+      // sklanjamo je posle tranzicije da nema vidljivog "šava".
+      setTimeout(() => bgImg?.remove(), 520);
+    }
   }
 
   function hideScratchInstant() {

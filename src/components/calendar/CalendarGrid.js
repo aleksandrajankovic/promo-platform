@@ -21,6 +21,7 @@ export default function CalendarGrid({
   today,
   openDay = null,
   timezone = "Europe/Belgrade",
+  scratchCoverUrl = "/img/scratchCard.png",
 }) {
   const { cells, daysPayload } = buildCalendarData({
     year,
@@ -38,7 +39,7 @@ export default function CalendarGrid({
   // Kad je poznat dan koji treba otvoren pri učitavanju (/promo/[iso]/[slug]),
   // renderujemo sadržaj popup-a direktno na serveru — vidljiv bez izvršavanja JS-a.
   const openEntry = openDay != null ? daysPayload.find((d) => d.day === openDay && d.hasPromo) : null;
-  const openHtml = openEntry ? renderModalHTML(openEntry, lang, theme) : null;
+  const openHtml = openEntry ? renderModalHTML(openEntry, lang, theme, scratchCoverUrl) : null;
 
   return (
     <section
@@ -199,6 +200,7 @@ export default function CalendarGrid({
             month,
             lang,
             theme,
+            scratchCoverUrl,
           }),
         }}
       />

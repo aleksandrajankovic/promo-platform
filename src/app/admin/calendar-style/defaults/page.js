@@ -24,10 +24,11 @@ export default function DefaultSettingsPage() {
   const [countdownLabel, setCountdownLabel]         = useState("");
   const [leaderboardEnabled, setLeaderboardEnabled] = useState(false);
   const [leaderboardFeedUrl, setLeaderboardFeedUrl] = useState("");
+  const [scratchCoverUrl, setScratchCoverUrl]   = useState("/img/scratchCard.png");
   const [loading, setLoading]                   = useState(true);
   const [saving, setSaving]                     = useState(false);
   const [showGallery, setShowGallery]           = useState(false);
-  const [galleryTarget, setGalleryTarget]       = useState(null); // "desktop" | "mobile" | "logo"
+  const [galleryTarget, setGalleryTarget]       = useState(null); // "desktop" | "mobile" | "logo" | "scratchCover"
   // "sr" je samo placeholder dok se ne ucita pravo trziste — ne sme da ostane
   // fiksno, jer /api/calendar-settings cuva seoMeta/calendarTitle pod
   // market.defaultLocale ključem (npr. "pt" za BR), ne uvek pod "sr".
@@ -53,6 +54,7 @@ export default function DefaultSettingsPage() {
         setCountdownLabel(d.countdownLabel || "");
         setLeaderboardEnabled(!!d.leaderboard?.enabled);
         setLeaderboardFeedUrl(d.leaderboard?.feedUrl || "");
+        setScratchCoverUrl(d.scratchCoverUrl || "/img/scratchCard.png");
       })
       .catch(() => toast.error("Error loading settings."))
       .finally(() => setLoading(false));
@@ -67,6 +69,7 @@ export default function DefaultSettingsPage() {
     if (galleryTarget === "desktop") setBgUrl(url);
     else if (galleryTarget === "mobile") setBgUrlMobile(url);
     else if (galleryTarget === "logo") setLogoUrl(url);
+    else if (galleryTarget === "scratchCover") setScratchCoverUrl(url);
     setShowGallery(false);
   }
 
@@ -87,6 +90,7 @@ export default function DefaultSettingsPage() {
           countdownTargetIso,
           countdownLabel,
           leaderboard: { enabled: leaderboardEnabled, feedUrl: leaderboardFeedUrl },
+          scratchCoverUrl,
         }),
       });
       if (!res.ok) throw new Error((await res.text().catch(() => "")) || `HTTP ${res.status}`);
@@ -94,15 +98,16 @@ export default function DefaultSettingsPage() {
       setBgUrl(d.bgImageUrl || "/img/bg-calendar.png");
       setBgUrlMobile(d.bgImageUrlMobile || "/img/bg-calendar-mobile.png");
       setCalendarPosition(d.calendarPosition || "left");
-      setTitleSr(d.calendarTitle?.sr || "PRAZNIČNE MISIJE");
+      setTitleSr(d.calendarTitle?.[lang] || d.calendarTitle?.sr || "PRAZNIČNE MISIJE");
       setLogoUrl(d.logoUrl || "/img/meridianbet-ng.png");
       setTheme(d.theme || "default");
-      setSeoTitleSr(d.seoMeta?.sr?.title || "");
-      setSeoDescSr(d.seoMeta?.sr?.description || "");
+      setSeoTitleSr(d.seoMeta?.[lang]?.title || "");
+      setSeoDescSr(d.seoMeta?.[lang]?.description || "");
       setCountdownTargetIso(d.countdownTargetIso || "");
       setCountdownLabel(d.countdownLabel || "");
       setLeaderboardEnabled(!!d.leaderboard?.enabled);
       setLeaderboardFeedUrl(d.leaderboard?.feedUrl || "");
+      setScratchCoverUrl(d.scratchCoverUrl || "/img/scratchCard.png");
       toast.success("Default settings saved.");
     } catch (e) {
       toast.error(`Error: ${e.message || "Saving failed."}`);
@@ -315,6 +320,35 @@ export default function DefaultSettingsPage() {
                   }
                 </div>
               </div>
+            </div>
+          </AdminTableCard>
+
+          {/* ── SCRATCH CARD COVER ── */}
+          <AdminTableCard title="Scratch Card Cover">
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-neutral-500">
+                Image shown on the scratch-off layer for promotions with "Enable scratch card" turned on.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  className="flex-1 min-w-0 border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
+                  value={scratchCoverUrl}
+                  onChange={(e) => setScratchCoverUrl(e.target.value)}
+                  placeholder="/img/scratchCard.png"
+                />
+                <button
+                  type="button"
+                  onClick={() => openGallery("scratchCover")}
+                  className="shrink-0 inline-flex items-center justify-center px-4 py-2.5 rounded bg-[#1F2933] text-white text-xs hover:brightness-110 whitespace-nowrap"
+                >
+                  Choose from gallery
+                </button>
+              </div>
+              {scratchCoverUrl && (
+                <div className="mt-1 border border-neutral-200 rounded-lg overflow-hidden w-full max-w-[240px] aspect-video bg-black/40">
+                  <img src={scratchCoverUrl} alt="scratch cover preview" className="w-full h-full object-cover" />
+                </div>
+              )}
             </div>
           </AdminTableCard>
 

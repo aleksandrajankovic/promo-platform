@@ -24,6 +24,7 @@ export default function CalendarPageView({
   baseUrl,
   mainSiteUrl,
   timezone,
+  scratchCoverUrl,
   logoUrl,
   bgImageUrl,
   bgImageUrlMobile,
@@ -183,6 +184,7 @@ export default function CalendarPageView({
                 today={today}
                 openDay={openDay}
                 timezone={timezone}
+                scratchCoverUrl={scratchCoverUrl}
               />
             </div>
 

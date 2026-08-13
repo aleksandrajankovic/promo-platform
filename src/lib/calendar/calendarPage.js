@@ -61,6 +61,7 @@ function normWeeklyRows(rows = [], lang) {
         buttonColor: r.buttonColor || "green",
         category: r.category || "ALL",
         scratch: !!r.scratch,
+        flipCard: !!r.flipCard,
       };
     }
   }
@@ -83,6 +84,7 @@ function normalizeSpecials(rows = [], lang) {
       buttonColor: r.buttonColor || "green",
       category: r.category || "ALL",
       scratch: !!r.scratch,
+      flipCard: !!r.flipCard,
       knockoutPhase: r.knockoutPhase || null,
     };
   });
@@ -303,6 +305,7 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     baseUrl: getBaseUrl(market),
     mainSiteUrl: getMainSiteUrl(market),
     timezone: market.timezone || "Europe/Belgrade",
+    scratchCoverUrl: calendarSettings?.scratchCoverUrl || "/img/scratchCard.png",
     logoUrl,
     bgImageUrl,
     bgImageUrlMobile,

@@ -465,3 +465,20 @@ button {
     transform: translate3d(var(--drift, 0px), 110vh, 0);
   }
 }
+
+/* ── Flip card ─────────────────────────────────────────────── */
+.flip-card-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.65s cubic-bezier(0.4, 0.2, 0.2, 1);
+  touch-action: manipulation;
+}
+.flip-card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+.flip-card-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-card-back {
+  transform: rotateY(180deg);
+}

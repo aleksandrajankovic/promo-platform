@@ -36,6 +36,7 @@ export async function GET(req) {
       enabled: !!row?.leaderboard?.enabled,
       feedUrl: row?.leaderboard?.feedUrl || "",
     },
+    scratchCoverUrl: row?.scratchCoverUrl || "/img/scratchCard.png",
   });
 }
 
@@ -100,6 +101,9 @@ export async function PUT(req) {
   if ("countdownLabel" in body)
     patch.countdownLabel = (body.countdownLabel || "").trim() || null;
 
+  if ("scratchCoverUrl" in body)
+    patch.scratchCoverUrl = (body.scratchCoverUrl || "").trim() || null;
+
   if ("leaderboard" in body) {
     const lb = body.leaderboard || {};
     patch.leaderboard = {
@@ -152,5 +156,6 @@ export async function PUT(req) {
       enabled: !!row.leaderboard?.enabled,
       feedUrl: row.leaderboard?.feedUrl || "",
     },
+    scratchCoverUrl: row.scratchCoverUrl || "/img/scratchCard.png",
   });
 }

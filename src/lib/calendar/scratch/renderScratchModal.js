@@ -1,7 +1,7 @@
 // src/lib/scratch/renderScratchModal.js
 import { getExclusiveBadgeLabel } from "@/lib/calendar/promoCategoryStyles";
 
-function extractFirstImg(richHtml = "") {
+export function extractFirstImg(richHtml = "") {
   if (!richHtml) return { imgSrc: "", restHtml: "" };
 
   const m = richHtml.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/i);
@@ -20,12 +20,13 @@ export function renderScratchModal({
   lang,
   shareKey,
   threshold = 0.7,
-  coverSrc = "/img/f3.jpg",
+  coverSrc = "/img/scratchCard.png",
   theme = "default",
   year,
   month,
   day,
   category,
+  flipCard = false,
 }) {
   const { imgSrc, restHtml } = extractFirstImg(richHtml);
 
@@ -40,6 +41,99 @@ export function renderScratchModal({
 
   const safeKey = String(shareKey || "default");
 
+  const canvasEl = `
+        <canvas
+          id="scratch-canvas"
+          data-key="${safeKey}"
+          data-cover="${coverSrc}"
+          data-threshold="${threshold}"
+          data-theme="${theme}"
+          data-year="${year ?? ""}"
+          data-month="${month ?? ""}"
+          data-day="${day ?? ""}"
+          data-flip="${flipCard ? "1" : ""}"
+          class="absolute -inset-px z-10 block touch-none select-none"
+          style="width:calc(100% + 2px); height:calc(100% + 2px); background-color:#6b21a8"
+        ></canvas>`;
+
+  const ctaHtml = canOpen
+    ? `<div class="pt-5 flex justify-center">
+        <a href="${link}" target="_blank" rel="noreferrer"
+           class="w-4/5 max-w-[360px] px-4 py-3 rounded-[10px]
+                  text-sm text-center font-semibold
+                  ${isYellow ? "bg-[#FACC01] text-black" : "bg-[#17BB00] text-white"}
+                  hover:brightness-110 transition">
+          ${button}
+        </a>
+      </div>`
+    : "";
+
+  if (flipCard) {
+    // Scratch otkriva flip karticu umesto klasičnog accordion panela — prednja
+    // strana je ista slika (nema vidljivog "šava" kad se scratch canvas ukloni),
+    // dodir okreće na zadnju stranu sa detaljima.
+    return `
+    <div class="w-full max-w-[420px] mx-auto rounded-3xl overflow-hidden">
+      <div class="flip-card-wrapper relative" style="aspect-ratio:360/430; perspective:1000px">
+        <img
+          id="scratch-bg-img"
+          src="${imgSrc || coverSrc}"
+          alt=""
+          class="absolute inset-0 z-0 block w-full h-full object-cover rounded-2xl"
+        />
+
+        <div
+          id="scratch-reveal"
+          class="absolute inset-0 z-[5] opacity-0 pointer-events-none transition-opacity duration-300"
+        >
+          <div id="flip-card-inner" class="flip-card-inner h-full">
+            <div class="flip-card-face absolute inset-0 rounded-2xl overflow-hidden">
+              ${
+                imgSrc
+                  ? `<img src="${imgSrc}" alt="" class="absolute inset-0 z-0 block w-full h-full object-cover" />`
+                  : `<div class="absolute inset-0 z-0 flex items-center justify-center text-white/70 text-sm leading-normal bg-[#6b21a8]">No image</div>`
+              }
+            </div>
+            <div class="flip-card-face flip-card-back absolute inset-0 rounded-2xl bg-[#05070D] px-4 py-5 overflow-y-auto">
+              <h2 class="font-bold text-[22px] md:text-[26px] text-center text-white">
+                ${title}
+              </h2>
+              <div class="text-[11px] uppercase tracking-[0.12em] text-[#FACC01] mt-2 text-center">
+                ${categoryLabel}
+              </div>
+              ${
+                restHtml
+                  ? `<div class="mt-3 text-sm text-white/90
+                            [&_p]:mb-2 [&_p:last-child]:mb-0
+                            [&_strong]:font-semibold
+                            [&_ul]:list-disc [&_ul]:pl-5">
+                      ${restHtml}
+                    </div>`
+                  : ""
+              }
+              ${ctaHtml}
+            </div>
+          </div>
+        </div>
+
+        ${canvasEl}
+      </div>
+
+      <div
+        id="scratch-hint"
+        class="mt-3 text-center text-xl font-semibold text-white uppercase"
+      >${hintText}</div>
+      <div
+        id="scratch-hint1"
+        class="text-[#FACC01] text-sm text-center uppercase"
+      >${hintText1}</div>
+      <div id="flip-hint" class="mt-1 text-center text-xs text-white/70 uppercase tracking-[0.1em] opacity-0 transition-opacity duration-300">
+        ${lang === "sr" ? "Dodirni za detalje" : "Tap for details"}
+      </div>
+    </div>
+    `;
+  }
+
   return `
   <div class="w-full max-w-[420px] mx-auto rounded-3xl overflow-hidden">
 
@@ -52,18 +146,7 @@ export function renderScratchModal({
             : `<div class="absolute inset-0 z-0 flex items-center justify-center text-white/70 text-sm leading-normal">No image</div>`
         }
 
-        <canvas
-          id="scratch-canvas"
-          data-key="${safeKey}"
-          data-cover="${coverSrc}"
-          data-threshold="${threshold}"
-          data-theme="${theme}"
-          data-year="${year ?? ""}"
-          data-month="${month ?? ""}"
-          data-day="${day ?? ""}"
-          class="absolute -inset-px z-10 block touch-none select-none"
-          style="width:calc(100% + 2px); height:calc(100% + 2px); background-color:#6b21a8"
-        ></canvas>
+        ${canvasEl}
       </div>
 
       <!-- HINTS (nestaju kad se ogrebe) -->
@@ -108,23 +191,7 @@ export function renderScratchModal({
           : ""
       }
 
-      ${
-        canOpen
-          ? `<div class="pt-5 flex justify-center">
-              <a href="${link}" target="_blank" rel="noreferrer"
-                 class="w-4/5 max-w-[360px] px-4 py-3 rounded-[10px]
-                        text-sm text-center font-semibold
-                        ${
-                          isYellow
-                            ? "bg-[#FACC01] text-black"
-                            : "bg-[#17BB00] text-white"
-                        }
-                        hover:brightness-110 transition">
-                ${button}
-              </a>
-            </div>`
-          : ""
-      }
+      ${ctaHtml}
     </div>
   </div>
   `;
