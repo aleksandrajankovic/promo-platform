@@ -1,0 +1,26 @@
+# Dependabot — automatski PR-ovi za ažuriranje zavisnosti.
+# Bezbednosne ispravke dolaze odmah (kad su u GitHub podešavanjima repoa
+# uključeni "Dependabot alerts" i "Dependabot security updates"); ovde su
+# podešena i redovna nedeljna ažuriranja, grupisana da ne bude previše PR-ova.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # minor/patch verzije svih paketa u jednom PR-u
+      minor-and-patch:
+        update-types: [minor, patch]
+    # major verzije (npr. Prisma 7, Next 17) traže ručnu migraciju — samo
+    # bezbednosne ispravke ih otvaraju, ne redovni nedeljni ciklus
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

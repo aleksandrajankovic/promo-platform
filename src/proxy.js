@@ -1,17 +1,16 @@
-// middleware.js
+// proxy.js (Next 16 je preimenovao "middleware" u "proxy")
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-// Edge runtime — bez DB pristupa ovde namerno (Prisma nije edge-compatible
-// bez posebnog adaptera). Market po hostname-u se rešava dole, u samim
-// stranicama/rutama (Node.js runtime), ne ovde.
+// Namerno bez DB pristupa — proxy se izvršava pre svakog zahteva, pa mora
+// da bude brz. Market po hostname-u se rešava dole, u samim stranicama/rutama.
 function isAdminHost(req) {
   const host = req.headers.get("host") || "";
   const adminHost = process.env.ADMIN_HOST || "";
   return adminHost && host === adminHost;
 }
 
-export async function middleware(req) {
+export async function proxy(req) {
   const { pathname } = req.nextUrl;
 
   // Admin/login putanje — nepromenjena logika od ranije, samo sada eksplicitno
@@ -51,7 +50,7 @@ export async function middleware(req) {
   // stvarni jezik trenutne stranice da bi ispravno postavio <html lang>, ali
   // App Router root layout nema pristup route params-ima. Prosleđujemo prvi
   // path segment kroz header; layout ga proverava protiv market.locales pre
-  // upotrebe (ovde se ništa ne validira niti dotiče baza — Edge runtime).
+  // upotrebe (ovde se ništa ne validira niti dotiče baza).
   const firstSegment = pathname.split("/").filter(Boolean)[0] || "";
   const res = NextResponse.next();
   res.headers.set("x-first-segment", firstSegment);

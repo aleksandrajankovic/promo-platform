@@ -10,7 +10,7 @@ import { getBaseUrl, getMainSiteUrl } from "@/lib/calendar/calendarPage";
 export const dynamic = "force-dynamic";
 
 // Root layout nema pristup route params-ima u App Router-u, pa ne zna koji je
-// stvarni jezik trenutne stranice (npr. TZ-ova /en/... ruta) — middleware.js
+// stvarni jezik trenutne stranice (npr. TZ-ova /en/... ruta) — proxy.js
 // prosleđuje prvi path segment kroz x-first-segment header; ovde se proverava
 // protiv market.locales pre upotrebe, ne veruje se slepo.
 function resolveLocale(market, firstSegment) {
