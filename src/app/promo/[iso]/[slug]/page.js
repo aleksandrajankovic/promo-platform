@@ -5,8 +5,12 @@ import { cookies, headers } from "next/headers";
 import CalendarPageView from "@/components/calendar/CalendarPageView";
 import { buildPromoUrlISO } from "@/lib/calendar/slug";
 import { buildCalendarData } from "@/lib/calendar/calendarGridHelpers";
-import { resolveMarketByHost } from "@/lib/marketScope";
+import { resolveMarketByHostCached } from "@/lib/marketScope";
 import { getBaseUrl, loadCalendarPageData, monthHref } from "@/lib/calendar/calendarPage";
+
+// Eksplicitno — danas dinamicko samo posredno preko headers()/cookies()
+// poziva ispod; ruta zavisi od host header-a (market po domenu).
+export const dynamic = "force-dynamic";
 
 // YYYY-MM-DD → { y, m(0-11), d } + validacija
 function parseISO(iso) {
@@ -56,7 +60,7 @@ const resolveDayEntry = cache(async (market, iso, isAdmin) => {
 export async function generateMetadata({ params }) {
   const p = await params;
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
+  const market = await resolveMarketByHostCached(h.get("host"), h.get("cookie"));
   if (!market) return {};
 
   const resolved = await resolveDayEntry(market, p.iso, false);
@@ -100,7 +104,7 @@ export default async function PromoDetailPage({ params }) {
   const p = await params;
 
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
+  const market = await resolveMarketByHostCached(h.get("host"), h.get("cookie"));
   if (!market) notFound();
 
   const cookieStore = await cookies();

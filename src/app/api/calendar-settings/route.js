@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
-import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
+import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 
 const VALID_POS = ["left", "center", "right"];
 const VALID_THEMES = ["default", "default-horizontal", "football"];
@@ -12,13 +12,8 @@ const DEFAULT_SEO_META = {
 };
 
 export async function GET(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const row = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
   return Response.json({
@@ -37,17 +32,13 @@ export async function GET(req) {
       feedUrl: row?.leaderboard?.feedUrl || "",
     },
     scratchCoverUrl: row?.scratchCoverUrl || "/img/scratchCard.png",
+    scratchCursorUrl: row?.scratchCursorUrl || "/img/coin.png",
   });
 }
 
 export async function PUT(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
 
@@ -104,6 +95,9 @@ export async function PUT(req) {
   if ("scratchCoverUrl" in body)
     patch.scratchCoverUrl = (body.scratchCoverUrl || "").trim() || null;
 
+  if ("scratchCursorUrl" in body)
+    patch.scratchCursorUrl = (body.scratchCursorUrl || "").trim() || null;
+
   if ("leaderboard" in body) {
     const lb = body.leaderboard || {};
     patch.leaderboard = {
@@ -157,5 +151,6 @@ export async function PUT(req) {
       feedUrl: row.leaderboard?.feedUrl || "",
     },
     scratchCoverUrl: row.scratchCoverUrl || "/img/scratchCard.png",
+    scratchCursorUrl: row.scratchCursorUrl || "/img/coin.png",
   });
 }

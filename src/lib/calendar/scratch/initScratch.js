@@ -2,6 +2,26 @@
 import confetti from "canvas-confetti";
 import { markDayOpened } from "@/lib/calendar/calendarProgress";
 
+// Meri "prirodnu" visinu lica kartice (uključujući njegov padding/margin) —
+// lica su position:absolute; inset:0 da bi 3D flip radio, pa se njihova
+// scrollHeight inače svodi na visinu wrapper-a. Privremeni klon van ekrana,
+// iste širine, sa height:auto, daje pravu visinu sadržaja.
+function measureNaturalHeight(el, widthPx) {
+  const clone = el.cloneNode(true);
+  clone.style.position = "fixed";
+  clone.style.visibility = "hidden";
+  clone.style.pointerEvents = "none";
+  clone.style.inset = "auto";
+  clone.style.top = "-9999px";
+  clone.style.left = "-9999px";
+  clone.style.height = "auto";
+  clone.style.width = `${widthPx}px`;
+  document.body.appendChild(clone);
+  const h = clone.scrollHeight;
+  document.body.removeChild(clone);
+  return h;
+}
+
 // Tap-to-flip na #flip-card-inner — DOM-only, radi i za scratch+flip i za
 // samostalnu flip karticu (bez scratch-a). Klikovi na ugnježdeni <a>/<button>
 // (CTA dugme na zadnjoj strani) se ignorišu da ne okrenu karticu nazad.
@@ -11,11 +31,28 @@ export function attachFlipListener() {
   inner.dataset.flipBound = "1";
 
   const hint = document.getElementById("flip-hint");
+  const wrapper = inner.closest(".flip-card-wrapper");
+  const backFace = inner.querySelector(".flip-card-back");
+  // Prednja strana je samo slika bez sadržaja u normalnom toku (apsolutno
+  // pozicionirana unutra) — nema šta prirodno da se izmeri, pa se za nju
+  // uvek vraća originalni fiksni format umesto merenja.
+  const frontAspectRatio = wrapper?.style.aspectRatio || "360 / 430";
 
   inner.onclick = (e) => {
     if (e.target.closest("a, button")) return;
     const flipped = inner.classList.toggle("is-flipped");
     if (hint) hint.style.opacity = flipped ? "0" : "1";
+
+    if (!wrapper) return;
+    if (flipped && backFace) {
+      const width = wrapper.getBoundingClientRect().width;
+      const h = measureNaturalHeight(backFace, width);
+      wrapper.style.aspectRatio = "unset";
+      wrapper.style.height = `${h}px`;
+    } else {
+      wrapper.style.height = "";
+      wrapper.style.aspectRatio = frontAspectRatio;
+    }
   };
 }
 

@@ -21,6 +21,7 @@ export function renderScratchModal({
   shareKey,
   threshold = 0.7,
   coverSrc = "/img/scratchCard.png",
+  cursorSrc = "/img/coin.png",
   theme = "default",
   year,
   month,
@@ -53,7 +54,7 @@ export function renderScratchModal({
           data-day="${day ?? ""}"
           data-flip="${flipCard ? "1" : ""}"
           class="absolute -inset-px z-10 block touch-none select-none"
-          style="width:calc(100% + 2px); height:calc(100% + 2px); background-color:#6b21a8"
+          style="width:calc(100% + 2px); height:calc(100% + 2px); background-color:#6b21a8; cursor:url('${cursorSrc}') 16 16, pointer"
         ></canvas>`;
 
   const ctaHtml = canOpen
@@ -103,10 +104,10 @@ export function renderScratchModal({
               </div>
               ${
                 restHtml
-                  ? `<div class="mt-3 text-sm text-white/90
+                  ? `<div class="mt-3 text-sm text-center text-white/90
                             [&_p]:mb-2 [&_p:last-child]:mb-0
                             [&_strong]:font-semibold
-                            [&_ul]:list-disc [&_ul]:pl-5">
+                            [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:list-inside">
                       ${restHtml}
                     </div>`
                   : ""

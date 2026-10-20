@@ -2,8 +2,31 @@ import { Roboto, Roboto_Condensed} from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { headers } from "next/headers";
-import { resolveMarketByHost } from "@/lib/marketScope";
+import { resolveMarketByHostCached } from "@/lib/marketScope";
 import { getBaseUrl, getMainSiteUrl } from "@/lib/calendar/calendarPage";
+
+// Dinamičko po host-u (resolveMarketByHost) — eksplicitno, ne oslanjati se na
+// implicitno ponašanje headers()/cookies() poziva.
+export const dynamic = "force-dynamic";
+
+// Root layout nema pristup route params-ima u App Router-u, pa ne zna koji je
+// stvarni jezik trenutne stranice (npr. TZ-ova /en/... ruta) — middleware.js
+// prosleđuje prvi path segment kroz x-first-segment header; ovde se proverava
+// protiv market.locales pre upotrebe, ne veruje se slepo.
+function resolveLocale(market, firstSegment) {
+  const defaultLocale = market?.defaultLocale || "sr";
+  if (firstSegment && market?.locales?.includes(firstSegment)) return firstSegment;
+  return defaultLocale;
+}
+
+const DEFAULT_TITLE_BY_LOCALE = {
+  sr: "Kalendar Promocija | Meridianbet",
+  en: "Promo Calendar | Meridianbet",
+};
+const DEFAULT_DESCRIPTION_BY_LOCALE = {
+  sr: "Budite u toku sa dnevnim ponudama, otkrijte nove promocije i iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.",
+  en: "Stay up to date with daily offers, discover new promotions, and claim exclusive rewards with the Meridianbet Promo Calendar.",
+};
 
 const roboto = Roboto({
   subsets: ["latin", "latin-ext", "cyrillic"],
@@ -16,24 +39,22 @@ const robotoCondensed = Roboto_Condensed({
   variable: "--font-roboto-condensed",
 });
 
-const DEFAULT_TITLE = "Kalendar Promocija | Meridianbet";
-const DEFAULT_DESCRIPTION =
-  "Budite u toku sa dnevnim ponudama, otkrijte nove promocije i iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.";
-
 export async function generateMetadata() {
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
+  const market = await resolveMarketByHostCached(h.get("host"), h.get("cookie"));
   const baseUrl = getBaseUrl(market);
-  const lang = market?.defaultLocale || "sr";
+  const lang = resolveLocale(market, h.get("x-first-segment"));
+  const title = DEFAULT_TITLE_BY_LOCALE[lang] || DEFAULT_TITLE_BY_LOCALE.sr;
+  const description = DEFAULT_DESCRIPTION_BY_LOCALE[lang] || DEFAULT_DESCRIPTION_BY_LOCALE.sr;
 
   return {
     metadataBase: new URL(baseUrl),
-    title: DEFAULT_TITLE,
-    description: DEFAULT_DESCRIPTION,
+    title,
+    description,
     alternates: { canonical: "/" },
     openGraph: {
-      title: DEFAULT_TITLE,
-      description: DEFAULT_DESCRIPTION,
+      title,
+      description,
       url: "/",
       siteName: "Meridianbet",
       images: [
@@ -49,8 +70,8 @@ export async function generateMetadata() {
     },
     twitter: {
       card: "summary_large_image",
-      title: DEFAULT_TITLE,
-      description: DEFAULT_DESCRIPTION,
+      title,
+      description,
       images: ["https://cloud.merbet.com/Preview-image/calendar-universal.png"],
     },
     robots: {
@@ -62,9 +83,9 @@ export async function generateMetadata() {
 
 export default async function RootLayout({ children }) {
   const h = await headers();
-  const market = await resolveMarketByHost(h.get("host"), h.get("cookie"));
+  const market = await resolveMarketByHostCached(h.get("host"), h.get("cookie"));
   const baseUrl = getBaseUrl(market);
-  const lang = market?.defaultLocale || "sr";
+  const lang = resolveLocale(market, h.get("x-first-segment"));
 
   const organizationJsonLd = {
     "@context": "https://schema.org",

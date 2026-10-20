@@ -116,7 +116,7 @@ function renderNormalModal(entry, lang = "sr") {
   `;
 }
 
-export function renderModalHTML(entry, lang = "sr", theme = "default", coverSrc = "/img/scratchCard.png") {
+export function renderModalHTML(entry, lang = "sr", theme = "default", coverSrc = "/img/scratchCard.png", cursorSrc = "/img/coin.png") {
   if (!entry) {
     return lang === "sr"
       ? "<p>Ne postoje promocije za ovaj dan.</p>"
@@ -152,6 +152,7 @@ export function renderModalHTML(entry, lang = "sr", theme = "default", coverSrc 
       shareKey,
       threshold: 0.7,
       coverSrc,
+      cursorSrc,
       theme,
       year: entry?.year,
       month: entry?.month,
@@ -205,10 +206,10 @@ function renderFlipModal({ title, richHtml, link, button, buttonColor, lang, cat
           </div>
           ${
             restHtml
-              ? `<div class="mt-3 text-sm text-white/90
+              ? `<div class="mt-3 text-sm text-center text-white/90
                         [&_p]:mb-2 [&_p:last-child]:mb-0
                         [&_strong]:font-semibold
-                        [&_ul]:list-disc [&_ul]:pl-5">
+                        [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:list-inside">
                   ${restHtml}
                 </div>`
               : ""

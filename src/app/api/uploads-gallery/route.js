@@ -3,19 +3,14 @@ export const runtime = "nodejs";
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
+import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 
 const UPLOADS_ROOT = path.join(process.cwd(), "public", "uploads");
 const ALLOWED_EXT = /\.(png|jpe?g|webp|gif|svg)$/i;
 
 export async function GET(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const uploadsDir = path.join(UPLOADS_ROOT, market.code);
 
@@ -42,13 +37,8 @@ export async function GET(req) {
 }
 
 export async function DELETE(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(req.url);
   const name = searchParams.get("name");

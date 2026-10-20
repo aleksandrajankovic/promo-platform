@@ -3,16 +3,11 @@ export const runtime = "nodejs";
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
+import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 
 export async function GET(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const uploadsDir = path.join(process.cwd(), "public", "uploads", market.code);
 
@@ -31,13 +26,8 @@ export async function GET(req) {
 }
 
 export async function DELETE(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
   const rawFilename = (body.filename || "").trim();

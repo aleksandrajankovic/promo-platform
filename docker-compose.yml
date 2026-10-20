@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_HOST: ${ADMIN_HOST}
+      DEV_DEFAULT_MARKET: ${DEV_DEFAULT_MARKET}
+    volumes:
+      # Bez ovoga se svaki admin upload (public/uploads/<market>/...) gubi pri
+      # svakoj rekreaciji kontejnera — imenovani volume ga čuva preko restarta.
+      - uploads:/app/public/uploads
+    restart: unless-stopped
+
+volumes:
+  uploads:

@@ -8,7 +8,7 @@
 import { notFound, redirect, permanentRedirect } from "next/navigation";
 import { cookies, headers } from "next/headers";
 import CalendarPageView from "@/components/calendar/CalendarPageView";
-import { resolveMarketByHost } from "@/lib/marketScope";
+import { resolveMarketByHostCached } from "@/lib/marketScope";
 import {
   buildCalendarMetadata,
   loadCalendarPageData,
@@ -18,6 +18,11 @@ import {
   isCurrentMonth,
   localeMonthHref,
 } from "@/lib/calendar/calendarPage";
+
+// Eksplicitno - danas dinamicko samo posredno preko headers()/cookies()
+// poziva ispod; ruta zavisi od host header-a (market po domenu), pa buduca
+// izmena koja ukloni te pozive ne sme tiho da ukljuci full-route cache.
+export const dynamic = "force-dynamic";
 
 const isNumeric = (s) => /^\d+$/.test(s);
 
@@ -56,7 +61,7 @@ async function resolveRequest(paramsPromise, hostHeader, cookieHeader) {
   const parsed = parseSegments(segs);
   if (!parsed) return { notFound: true };
 
-  const market = await resolveMarketByHost(hostHeader, cookieHeader);
+  const market = await resolveMarketByHostCached(hostHeader, cookieHeader);
   if (!market) return { notFound: true };
 
   const locales = market.locales?.length ? market.locales : [market.defaultLocale || "sr"];
@@ -117,24 +122,29 @@ export default async function CalendarPage({ params, searchParams }) {
 
   const sp = await searchParams;
 
-  // Legacy podrška: stari linkovi tipa /?y=2026&m=5 (samo na "/", bez segmenata)
+  const locales = market.locales?.length ? market.locales : [defaultLocale];
+  const langRaw = Array.isArray(sp?.lang) ? sp.lang[0] : sp?.lang;
+  const validLang = langRaw && locales.includes(langRaw) ? langRaw : null;
+
+  // Legacy podrška: stari linkovi tipa /?y=2026&m=5[&lang=en] (samo na "/", bez
+  // segmenata) — trajan (308) redirect, isto obrazloženje kao ?lang= blok ispod:
+  // ne gubi SEO rang koji je Google već možda dodelio starim URL-ovima. lang se
+  // čita OVDE (ranije se gubio jer je ovaj blok redirect-ovao pre nego što se
+  // stiglo do posebne ?lang= provere, pa je /?y=..&lang=en tiho padao na default).
   const yRaw = Array.isArray(sp?.y) ? sp.y[0] : sp?.y;
   const mRaw = Array.isArray(sp?.m) ? sp.m[0] : sp?.m;
   if (yRaw !== undefined || mRaw !== undefined) {
     const y = Number.parseInt(yRaw, 10);
     const m = Number.parseInt(mRaw, 10);
     if (isValidYear(y) && isValidMonth(m)) {
-      redirect(localeMonthHref(null, defaultLocale, y, m));
+      permanentRedirect(localeMonthHref(validLang, defaultLocale, y, m));
     }
   }
 
   // Legacy podrška: TZ/CY su ranije birali jezik preko ?lang=en na golom URL-u —
-  // trajan (308) redirect na novi /en/... oblik, da se ne izgubi SEO rang koji
-  // je Google već možda dodelio tim ?lang= stranicama.
-  const langRaw = Array.isArray(sp?.lang) ? sp.lang[0] : sp?.lang;
-  const locales = market.locales?.length ? market.locales : [defaultLocale];
-  if (langRaw && locales.includes(langRaw)) {
-    permanentRedirect(localeMonthHref(langRaw, defaultLocale, year, month));
+  // trajan (308) redirect na novi /en/... oblik.
+  if (validLang) {
+    permanentRedirect(localeMonthHref(validLang, defaultLocale, year, month));
   }
 
   const cookieStore = await cookies();

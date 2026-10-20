@@ -3,20 +3,17 @@ export const runtime = "nodejs";
 
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
-import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
+import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 import { sanitizeRichHtml, sanitizeTranslations } from "@/lib/sanitize";
 import { sanitizeLink } from "@/lib/validate";
+import { getAllowedWeeklyCategories } from "@/lib/calendar/promoCategoryStyles";
+import { resolveMonthTheme } from "@/lib/calendar/monthTheme";
 
 // GET /api/weekly-plan?year=YYYY&month=MM — u praksi je konzumuje samo admin UI
 // (autentifikovan), zato ide kroz isti marketScope kao ostale admin rute.
 export async function GET(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(req.url);
   const year = Number.parseInt(searchParams.get("year") ?? "", 10);
@@ -36,13 +33,8 @@ export async function GET(req) {
 
 // PATCH /api/weekly-plan — bulk activate/deactivate svih dana u mesecu
 export async function PATCH(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
   const year = Number.parseInt(body.year, 10);
@@ -63,22 +55,19 @@ export async function PATCH(req) {
 }
 
 export async function PUT(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
   const year = Number.parseInt(body.year, 10);
   const month = Number.parseInt(body.month, 10);
   const weekday = Number.parseInt(body.weekday, 10);
 
+  const MIN_YEAR = 2024, MAX_YEAR = new Date().getFullYear() + 5;
   if (
-    ![year, month, weekday].every(Number.isInteger) ||
-    weekday < 0 || weekday > 6
+    !Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR ||
+    !Number.isInteger(month) || month < 0 || month > 11 ||
+    !Number.isInteger(weekday) || weekday < 0 || weekday > 6
   ) {
     return new Response("Bad payload", { status: 400 });
   }
@@ -88,6 +77,12 @@ export async function PUT(req) {
     title, button, rich, richHtml,
     translations: rawTranslations, defaultLang, category,
   } = body;
+
+  const theme = await resolveMonthTheme(market.id, year, month);
+  const allowed = getAllowedWeeklyCategories(theme);
+  if (category && !allowed.includes(category)) {
+    return new Response(`category "${category}" not allowed outside football theme`, { status: 400 });
+  }
 
   const translations = rawTranslations || {};
   const mainLang = defaultLang || market.defaultLocale || "sr";
@@ -121,13 +116,8 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
   const year = Number.parseInt(body.year, 10);
@@ -145,8 +135,10 @@ export async function DELETE(req) {
     await prisma.weeklyPlan.delete({
       where: { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } },
     });
-  } catch {
-    // ako ne postoji, i dalje vraćamo 204
+  } catch (err) {
+    // P2025 = već ne postoji — i dalje vraćamo 204. Svaka druga greška mora
+    // da se propagira, ne da se tiho prikaže adminu kao uspešno brisanje.
+    if (err?.code !== "P2025") throw err;
   }
 
   revalidateTag("calendar");

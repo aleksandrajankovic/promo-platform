@@ -18,6 +18,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
   const lang = payload.lang || "sr";
   const theme = payload.theme || "default";
   const scratchCoverUrl = payload.scratchCoverUrl || "/img/scratchCard.png";
+  const scratchCursorUrl = payload.scratchCursorUrl || "/img/coin.png";
 
   const modal = root.querySelector("#promo-modal");
   const content = root.querySelector("#promo-content");
@@ -85,7 +86,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
   // ---- Open modal (with optional overlay fade + dialog delay) ----
 
   function openModal(entry, { overlayFadeDuration = 0, dialogDelay = 0 } = {}) {
-    content.innerHTML = renderModalHTML(entry, lang, theme, scratchCoverUrl);
+    content.innerHTML = renderModalHTML(entry, lang, theme, scratchCoverUrl, scratchCursorUrl);
     if (entry?.year != null && entry?.month != null && entry?.day) {
       window.dispatchEvent(new CustomEvent("mb-day-viewed", {
         detail: { year: entry.year, month: entry.month, day: entry.day },

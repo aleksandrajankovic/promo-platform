@@ -19,6 +19,23 @@ function indexSpecialsForMonth(specials, year, month) {
   return map;
 }
 
+// Da li je dati datum "zaključan" (strogo u budućnosti, u odnosu na "danas"
+// u zoni tržišta) — ista logika kao isFutureForUx/isLocked ispod u
+// buildCalendarData, izdvojena da je mogu koristiti i mesta koja ne grade
+// ceo kalendar grid (npr. CalendarJsonLd, koji samo filtrira jednu listu).
+export function isDateLocked(year, month, day, timezone = "Europe/Belgrade", today = new Date()) {
+  const d = new Date(year, month, day);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(today);
+  const y = parseInt(parts.find((p) => p.type === "year").value);
+  const m = parseInt(parts.find((p) => p.type === "month").value) - 1;
+  const dd = parseInt(parts.find((p) => p.type === "day").value);
+  const todayDateOnly = new Date(y, m, dd);
+  return d > todayDateOnly;
+}
+
 function pickPromoForDate(date, weekly, specialsMap) {
   const sp = specialsMap.get(date.getDate());
   if (sp) return { promo: sp, type: "special" };

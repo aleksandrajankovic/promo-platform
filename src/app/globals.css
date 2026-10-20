@@ -244,9 +244,6 @@ button {
   width: 90%;
 }
 
-#scratch-canvas {
-  cursor: url("/img/kopacka-01.png") 16 16, pointer;
-}
 /* Admin može da klikne future */
 .admin-preview .future button,
 .admin-preview .future {
@@ -467,6 +464,9 @@ button {
 }
 
 /* ── Flip card ─────────────────────────────────────────────── */
+.flip-card-wrapper {
+  transition: height 0.35s ease;
+}
 .flip-card-inner {
   transform-style: preserve-3d;
   transition: transform 0.65s cubic-bezier(0.4, 0.2, 0.2, 1);

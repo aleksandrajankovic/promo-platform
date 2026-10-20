@@ -5,7 +5,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import sharp from "sharp";
-import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
+import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 import { sanitizeSvg } from "@/lib/sanitize";
 
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
@@ -15,13 +15,8 @@ const RASTER_MIME = ["image/jpeg", "image/png", "image/webp"];
 const ALLOWED_MIME = [...RASTER_MIME, "image/svg+xml"];
 
 export async function POST(req) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const form = await req.formData();
   const file = form.get("file");

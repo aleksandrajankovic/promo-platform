@@ -235,7 +235,7 @@ function ColorPicker({ activeColor, setColor }) {
 
 export default function RichEditor({
   initialJSON = null,
-  placeholder = "Upiši sadržaj…",
+  placeholder = "Write content…",
   onChange,
 }) {
   const [showImageGallery, setShowImageGallery] = React.useState(false);

@@ -1,5 +1,6 @@
-// src/lib/calendarPage.js
+// src/lib/calendar/calendarPage.js
 // Zajednička logika za kalendarske stranice ("/" i "/[year]/[month]")
+import { cache } from "react";
 import prisma from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
@@ -26,6 +27,34 @@ export const MONTH_NAMES_SR = [
   "Januar", "Februar", "Mart", "April", "Maj", "Jun",
   "Jul", "Avgust", "Septembar", "Oktobar", "Novembar", "Decembar",
 ];
+
+// Isti fallback za en-jezička tržišta kad admin nije popunio seoMeta/naslov —
+// bez ovoga TZ/BR/BA/COM dobijaju srpski meta title/description kad seoMeta
+// nije podešen za njihov jezik, iako je hreflang/html-lang ispravno "en".
+const MONTH_NAMES_EN = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function localizedMonthMeta(lang, monthName, year) {
+  if (lang === "en") {
+    return {
+      title: `Promo Calendar ${monthName} ${year} | Meridianbet`,
+      description: `Discover daily promotions for ${monthName} ${year}. Claim exclusive rewards with the Meridianbet Promo Calendar.`,
+    };
+  }
+  return {
+    title: `Kalendar Promocija ${monthName} ${year} | Meridianbet`,
+    description: `Otkrijte dnevne promocije za ${monthName} ${year}. Iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.`,
+  };
+}
+
+// calendarSettings se traži i iz generateMetadata (buildCalendarMetadata) i iz
+// same stranice (loadCalendarPageData) u istom requestu — cache() dedupuje to
+// na jedan DB upit umesto dva. withRetry je uklopljen unutra, ne oko poziva.
+const getCalendarSettingsCached = cache((marketId) =>
+  withRetry(() => prisma.calendarSettings.findUnique({ where: { marketId } }))
+);
 
 // -------------------------
 // NORMALIZACIJA PODATAKA
@@ -152,14 +181,13 @@ export async function buildCalendarMetadata(market, year, month, lang) {
   const canonical = `${BASE_URL}${localeMonthHref(resolvedLang, defaultLocale, year, month)}`;
 
   // seoMeta from DB overrides the auto-generated per-month title/description
-  const settings = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
+  const settings = await getCalendarSettingsCached(market.id);
   const seo = settings?.seoMeta?.[resolvedLang] || {};
 
-  const monthSr = MONTH_NAMES_SR[month];
-  const title = seo.title || `Kalendar Promocija ${monthSr} ${year} | Meridianbet`;
-  const description =
-    seo.description ||
-    `Otkrijte dnevne promocije za ${monthSr} ${year}. Iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.`;
+  const monthName = resolvedLang === "en" ? MONTH_NAMES_EN[month] : MONTH_NAMES_SR[month];
+  const fallback = localizedMonthMeta(resolvedLang, monthName, year);
+  const title = seo.title || fallback.title;
+  const description = seo.description || fallback.description;
 
   // hreflang: jedan alternate po jeziku tržišta, ne samo trenutni — ako tržište
   // ima samo jedan jezik, ovo se svodi na isto ponašanje kao pre (jedan unos).
@@ -206,12 +234,10 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   const marketId = market.id;
   const resolvedLang = lang || market.defaultLocale || "sr";
 
-  // CalendarSettings se uvek čita sveže (inactive flag mora biti trenutan).
-  // Prvi upit na stranici — najverovatnije mesto da se pogodi Neon cold-start
-  // ako je baza bila neaktivna (autosuspend), zato ide kroz withRetry.
-  const calendarSettings = await withRetry(() =>
-    prisma.calendarSettings.findUnique({ where: { marketId } })
-  );
+  // Isti calendarSettings red se traži i u buildCalendarMetadata (generateMetadata)
+  // za isti request — cache() dedupuje na jedan DB upit umesto dva. withRetry je
+  // uklopljen unutar getCalendarSettingsCached, štiti od Neon cold-start-a.
+  const calendarSettings = await getCalendarSettingsCached(marketId);
   const monthBgs = calendarSettings?.monthBackgrounds || {};
 
   // Redirect korisnika sa deaktiviranog meseca
@@ -227,16 +253,30 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     if (nearest) redirect(localeMonthHref(resolvedLang, market.defaultLocale || "sr", nearest.y, nearest.m));
   }
 
-  // Load promo data — admin dobija live podatke, korisnici keširane (5 min)
-  const { weeklyPlanRows, specialRows } = isAdmin
-    ? await (async () => {
-        const [weeklyPlanRows, specialRows] = await Promise.all([
-          prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
-          prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
-        ]);
-        return { weeklyPlanRows, specialRows };
-      })()
-    : await getPromoData(marketId, year, month);
+  // Skup deaktivovanih meseci za paginaciju — samo od monthBgs, ne zavisi od
+  // promo podataka ispod, pa se računa pre njih da može da uđe u isti Promise.all.
+  const inactiveSet = new Set(
+    Object.entries(monthBgs)
+      .filter(([, v]) => v?.inactive)
+      .map(([k]) => k)
+  );
+
+  // Load promo data — admin dobija live podatke, korisnici keširane (5 min).
+  // Paginacija (prevMonth/nextMonth) ne zavisi od weekly/special podataka ni
+  // obrnuto, pa idu u isti Promise.all umesto sekvencijalno.
+  const [{ weeklyPlanRows, specialRows }, prevMonth, nextMonth] = await Promise.all([
+    isAdmin
+      ? (async () => {
+          const [weeklyPlanRows, specialRows] = await Promise.all([
+            prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
+            prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
+          ]);
+          return { weeklyPlanRows, specialRows };
+        })()
+      : getPromoData(marketId, year, month),
+    findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet),
+    findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet),
+  ]);
 
   const planned = normWeeklyRows(weeklyPlanRows, resolvedLang);
 
@@ -275,13 +315,6 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   // tema kalendara — per-month override > global default
   const theme = monthBg.theme || calendarSettings?.theme || "default";
 
-  // Skup deaktivovanih meseci za paginaciju
-  const inactiveSet = new Set(
-    Object.entries(monthBgs)
-      .filter(([, v]) => v?.inactive)
-      .map(([k]) => k)
-  );
-
   const isMonthInactive = !!monthBg.inactive;
 
   // Odbrojavanje — podešeno u admin panelu; fallback zadržava dosadašnje ponašanje dok se ne podesi
@@ -293,12 +326,6 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     feedUrl: calendarSettings?.leaderboard?.feedUrl || "",
   };
 
-  // Pagination for months — preskačemo deaktivovane mesece
-  const [prevMonth, nextMonth] = await Promise.all([
-    findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet),
-    findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet),
-  ]);
-
   return {
     weekly,
     specials,
@@ -306,6 +333,7 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     mainSiteUrl: getMainSiteUrl(market),
     timezone: market.timezone || "Europe/Belgrade",
     scratchCoverUrl: calendarSettings?.scratchCoverUrl || "/img/scratchCard.png",
+    scratchCursorUrl: calendarSettings?.scratchCursorUrl || "/img/coin.png",
     logoUrl,
     bgImageUrl,
     bgImageUrlMobile,

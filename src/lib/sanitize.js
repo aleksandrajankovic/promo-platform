@@ -1,6 +1,13 @@
 // src/lib/sanitize.js
 import sanitizeHtml from "sanitize-html";
+import DOMPurify from "dompurify";
+import { JSDOM } from "jsdom";
 import { sanitizeLink } from "@/lib/validate";
+
+// Jedna DOMPurify instanca za ceo proces — jsdom window se pravi jednom pri
+// učitavanju modula, ne po zahtevu (ovo je long-lived Node proces u Docker-u,
+// ne serverless/edge, pa nema cold-start cene po pozivu).
+const svgPurify = DOMPurify(new JSDOM("").window);
 
 const ALLOWED_TAGS = [
   // tekst
@@ -69,21 +76,24 @@ export function sanitizeTranslations(translations) {
   return Object.keys(out).length ? out : null;
 }
 
-// Uklanja opasne konstrukte iz uploadovanog SVG-a (<script>, on*= handlere,
-// javascript:/data: linkove) bez re-parsiranja/re-serijalizacije dokumenta —
-// namerno string-based, jer parseri zasnovani na HTML5 (npr. sanitize-html)
-// lowercase-uju atribute poput viewBox/preserveAspectRatio i tako lome SVG.
+// Uklanja opasne konstrukte iz uploadovanog SVG-a preko pravog DOM parsera
+// (DOMPurify + jsdom), ne string/regex blocklist-a — regex pristup ne hvata
+// SMIL atribut injection (<set attributeName="onmouseover" .../>), entity-
+// obfuskovane URI šeme, ni <style> blokove. sanitize-html (koji se koristi za
+// rich tekst gore) nije opcija ovde jer lowercase-uje atribute poput
+// viewBox/preserveAspectRatio i tako lomi SVG — DOMPurify preko jsdom-a
+// ispravno čuva SVG foreign-content adjustment (case-sensitive atribute).
 export function sanitizeSvg(svgText) {
   if (!svgText || typeof svgText !== "string") return null;
 
-  let out = svgText;
-  out = out.replace(/<script[\s\S]*?<\/script\s*>/gi, "");
-  out = out.replace(/<script\b[^>]*>/gi, ""); // fallback za nezatvorene tagove
-  out = out.replace(/<foreignObject[\s\S]*?<\/foreignObject\s*>/gi, "");
-  out = out.replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "");
-  out = out.replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "");
-  out = out.replace(/((?:xlink:)?href|src)\s*=\s*"\s*(?:javascript|data):[^"]*"/gi, "");
-  out = out.replace(/((?:xlink:)?href|src)\s*=\s*'\s*(?:javascript|data):[^']*'/gi, "");
+  // DOMPurify-jev default ALLOWED_URI_REGEXP je već allowlist (http(s)/mailto/
+  // tel/... ili relativni URL) — javascript:/data: nisu na listi pa se
+  // automatski odbacuju, nema potrebe za ručnim override-om (manji rizik od
+  // greške u sopstvenom regex-u nego oslanjanje na upstream, održavan pattern).
+  const clean = svgPurify.sanitize(svgText, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ["script", "style", "foreignObject"],
+  });
 
-  return out;
+  return clean || null;
 }
