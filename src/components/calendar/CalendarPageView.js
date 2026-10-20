@@ -25,6 +25,7 @@ export default function CalendarPageView({
   mainSiteUrl,
   timezone,
   scratchCoverUrl,
+  scratchCursorUrl,
   logoUrl,
   bgImageUrl,
   bgImageUrlMobile,
@@ -39,10 +40,6 @@ export default function CalendarPageView({
   countdownLabel,
   leaderboard,
 }) {
-  const mainJustify =
-    pos === "center" ? "md:justify-center" :
-    pos === "right"  ? "md:justify-end" :
-                       "md:justify-start";
   const innerMargin =
     pos === "center" ? "mx-auto" :
     pos === "right"  ? "mx-auto md:mx-0 md:ml-auto" :
@@ -54,45 +51,40 @@ export default function CalendarPageView({
 
   return (
     <>
-      <CalendarJsonLd specials={specials} baseUrl={baseUrl} mainSiteUrl={mainSiteUrl} />
+      <CalendarJsonLd specials={specials} baseUrl={baseUrl} mainSiteUrl={mainSiteUrl} timezone={timezone} />
 
       {/* Preload hero pozadine — ubrzava LCP jer browser inače otkriva CSS background-image tek posle CSSOM parsinga */}
       <link rel="preload" as="image" href={bgImageUrl} media="(min-width: 768px)" fetchPriority="high" />
       <link rel="preload" as="image" href={bgImageUrlMobile} media="(max-width: 767px)" fetchPriority="high" />
 
-      {/* TOP HEADER BAR */}
-      <div className="min-h-[100dvh] flex flex-col overflow-hidden">
-        <header
-          className={
-            theme === "football"
-              ? "absolute inset-x-0 top-0 z-20 flex items-center justify-center px-4 py-6 md:py-7"
-              : "w-full bg-[linear-gradient(90deg,#A6080E_0%,#D11101_100%)] px-4 md:px-16 py-2 flex items-center justify-between shrink-0"
-          }
-        >
+      <div className="relative min-h-[100dvh] flex flex-col overflow-hidden">
+        {/* Bez header trake — logo centriran na celu stranicu, preko pozadine
+            (sadržaj ispod ima pt-14/md:pt-16 da ga ne preklopi), kontrole desno. */}
+        <div className="absolute inset-x-0 top-4 md:top-6 z-20 flex justify-center pointer-events-none">
           <a
             href={mainSiteUrl}
             target="_blank"
             rel="noreferrer"
             aria-label="Meridianbet Calendar main site"
+            className="pointer-events-auto"
           >
-            <img
-              src={logoUrl}
-              alt="Meridianbet"
-              className={theme === "football" ? "h-8 md:h-10 w-auto" : "h-5 md:h-[25px] w-auto"}
-            />
+            <img src={logoUrl} alt="Meridianbet" className="h-8 md:h-10 w-auto" />
           </a>
+        </div>
 
-          <div className={`flex items-center gap-2 ${theme === "football" ? "absolute right-4 hidden md:flex" : ""}`}>
-            {leaderboard?.enabled && <LeaderboardButton feedUrl={leaderboard.feedUrl} />}
-            {locales?.length > 1 && (
-              <LocaleSwitcher year={year} month={month} locale={locale} defaultLocale={defaultLocale} locales={locales} />
-            )}
-          </div>
-
-        </header>
+        <div className="absolute right-4 top-4 md:top-6 z-20 flex items-center gap-2">
+          {leaderboard?.enabled && (
+            <div className="hidden md:block">
+              <LeaderboardButton feedUrl={leaderboard.feedUrl} />
+            </div>
+          )}
+          {locales?.length > 1 && (
+            <LocaleSwitcher year={year} month={month} locale={locale} defaultLocale={defaultLocale} locales={locales} />
+          )}
+        </div>
 
         <main
-          className={`relative z-0 w-full flex-1 bg-no-repeat bg-cover bg-center calendar-bg overflow-hidden md:overflow-auto flex justify-center ${mainJustify}`}
+          className={`relative z-0 w-full flex-1 bg-no-repeat bg-cover bg-center calendar-bg overflow-hidden md:overflow-auto flex flex-col`}
           style={{ backgroundImage: `url("${bgImageUrl}")` }}
         >
           {/* MOBILE BG */}
@@ -106,7 +98,7 @@ export default function CalendarPageView({
           <SnowOverlay />
 
           <div
-            className={`relative z-10 w-full max-w-6xl px-4 sm:px-6 md:px-10 lg:px-16 pt-4 pb-4 md:pt-6 md:pb-10 ${innerMargin}`}
+            className={`relative z-10 w-full max-w-6xl px-4 sm:px-6 md:px-10 lg:px-16 pt-14 pb-4 md:pt-16 md:pb-0 ${innerMargin}`}
           >
             <h1
               className={`${
@@ -114,7 +106,7 @@ export default function CalendarPageView({
                   ? `text-[28px] md:text-[44px] font-black tracking-[0.06em] ${exo2Black.className}`
                   : "text-3xl md:text-5xl font-extrabold tracking-tight"
               } text-white text-center ${headingAlign} ${
-                theme === "football" ? "mt-10 mb-4 [@media(min-height:800px)]:mb-10 md:mt-10 md:mb-10" : "my-[30px]"
+                theme === "football" ? "mt-6 mb-4 [@media(min-height:800px)]:mb-10 md:mt-8 md:mb-10" : "my-[30px]"
               }`}
             >
               {calendarTitle}
@@ -122,9 +114,9 @@ export default function CalendarPageView({
 
             <CountdownTimer targetIso={countdownTargetIso} label={countdownLabel} />
 
-            {theme === "football" && (
+            {leaderboard?.enabled && (
               <div className="md:hidden flex justify-center mb-4">
-                {leaderboard?.enabled && <LeaderboardButton feedUrl={leaderboard.feedUrl} />}
+                <LeaderboardButton feedUrl={leaderboard.feedUrl} />
               </div>
             )}
 
@@ -143,12 +135,12 @@ export default function CalendarPageView({
                 </div>
                 {isMonthInactive && (
                   <div className="inline-flex items-center gap-1.5 rounded bg-red-700/40 text-red-200 border border-red-500/40 px-3 py-1 text-sm">
-                    <span>⚠ Mesec deaktiviran — nije vidljiv korisnicima</span>
+                    <span>⚠ Month deactivated — not visible to users</span>
                     <a
-                      href="/admin/calendar-style/monthly"
+                      href="/admin/calendar-style"
                       className="underline hover:text-white transition-colors"
                     >
-                      Izmeni
+                      Edit
                     </a>
                   </div>
                 )}
@@ -185,24 +177,27 @@ export default function CalendarPageView({
                 openDay={openDay}
                 timezone={timezone}
                 scratchCoverUrl={scratchCoverUrl}
+                scratchCursorUrl={scratchCursorUrl}
               />
             </div>
 
             <CalendarEnhancer adminPreview={isAdmin} lang={lang} openDay={openDay} />
 
-            {/* DESKTOP PAGINATION */}
-            <div className={`hidden md:flex items-center justify-center ${theme === "football" ? "mt-4" : ""}`}>
-              <MonthPagination
-                year={year}
-                month={month}
-                prevMonth={prevMonth}
-                nextMonth={nextMonth}
-                locale={locale}
-                defaultLocale={defaultLocale}
-                className="text-base"
-                labelClassName={theme === "football" ? bebasNeue.className : ""}
-              />
-            </div>
+          </div>
+
+          {/* DESKTOP PAGINATION — van kontejnera kalendara, centrirana na celu
+              stranicu (kao logo), bez obzira na poravnanje kalendara. */}
+          <div className={`relative z-10 hidden md:flex items-center justify-center md:pb-10 ${theme === "football" ? "mt-4" : ""}`}>
+            <MonthPagination
+              year={year}
+              month={month}
+              prevMonth={prevMonth}
+              nextMonth={nextMonth}
+              locale={locale}
+              defaultLocale={defaultLocale}
+              className="text-base"
+              labelClassName={theme === "football" ? bebasNeue.className : ""}
+            />
           </div>
         </main>
       </div>
