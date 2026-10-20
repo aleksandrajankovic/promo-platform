@@ -3,16 +3,8 @@ export const runtime = "nodejs";
 
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
-import { requireAdminMarket, MarketScopeError } from "@/lib/marketScope";
-import { sanitizeRichHtml, sanitizeTranslations } from "@/lib/sanitize";
-import { sanitizeLink } from "@/lib/validate";
-import { getAllowedCategories } from "@/lib/calendar/promoCategoryStyles";
-
-async function resolveMonthTheme(marketId, year, month) {
-  const settings = await prisma.calendarSettings.findUnique({ where: { marketId } });
-  const monthBg = settings?.monthBackgrounds?.[`${year}-${month}`];
-  return monthBg?.theme || settings?.theme || "default";
-}
+import { requireAdminMarketOrResponse } from "@/lib/marketScope";
+import { prepareSpecialData } from "@/lib/calendar/specialPayload";
 
 // Postojeći red mora pripadati market-u iz sesije — u suprotnom admin jednog
 // tržišta mogao bi da menja/briše promocije drugog tržišta pogađanjem id-a.
@@ -20,78 +12,27 @@ async function findOwnedOrNull(specialId, marketId) {
   return prisma.specialPromotion.findFirst({ where: { id: specialId, marketId } });
 }
 
+// Samo izmena postojećeg reda — nove promocije idu preko POST /api/special.
+// (Ranije je ovo bio upsert sa eksplicitnim id-jem, što bi mimoišlo Postgres
+// sekvencu i kasnije oborilo POST na duplom primarnom ključu.)
 export async function PUT(req, { params }) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const { id } = await params;
   const specialId = Number.parseInt(id, 10);
   if (!Number.isInteger(specialId)) return new Response("bad id", { status: 400 });
 
-  const existing = await prisma.specialPromotion.findUnique({ where: { id: specialId } });
-  if (existing && existing.marketId !== market.id) {
-    return new Response("not found", { status: 404 });
-  }
+  const owned = await findOwnedOrNull(specialId, market.id);
+  if (!owned) return new Response("not found", { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const {
-    year, month, day, icon, link, buttonColor, active, scratch, flipCard,
-    title, button, rich, richHtml,
-    translations: rawTranslations, defaultLang, category, knockoutPhase,
-  } = body;
+  const { data, error } = await prepareSpecialData(body, market);
+  if (error) return error;
 
-  const translations = rawTranslations || {};
-  const mainLang = defaultLang || market.defaultLocale || "sr";
-  const mainT = translations[mainLang] || {};
-
-  const MIN_YEAR = 2024, MAX_YEAR = new Date().getFullYear() + 5;
-  if (
-    !Number.isInteger(year) || year < MIN_YEAR || year > MAX_YEAR ||
-    !Number.isInteger(month) || month < 0 || month > 11 ||
-    !Number.isInteger(day) || day < 1 || day > 31
-  ) {
-    return new Response("Invalid date", { status: 400 });
-  }
-  if (!((title ?? "").trim() || (mainT.title ?? "").trim())) {
-    return new Response("Title is required", { status: 400 });
-  }
-
-  const theme = await resolveMonthTheme(market.id, year, month);
-  const allowed = getAllowedCategories(theme);
-  if (category && !allowed.includes(category)) {
-    return new Response(`category "${category}" not allowed outside football theme`, { status: 400 });
-  }
-  if (knockoutPhase && theme !== "football") {
-    return new Response("knockoutPhase only allowed for football theme", { status: 400 });
-  }
-
-  const data = {
-    marketId: market.id,
-    year, month, day,
-    title: mainT.title ?? title ?? "",
-    button: mainT.button ?? button ?? "",
-    link: sanitizeLink(mainT.link ?? link ?? ""),
-    rich: mainT.rich ?? rich ?? null,
-    richHtml: sanitizeRichHtml(mainT.richHtml ?? richHtml ?? null),
-    icon: icon ?? "",
-    active: !!active,
-    scratch: !!scratch,
-    flipCard: !!flipCard,
-    buttonColor: buttonColor || "green",
-    translations: sanitizeTranslations(translations),
-    category: category || "ALL",
-    knockoutPhase: knockoutPhase || null,
-  };
-
-  const row = await prisma.specialPromotion.upsert({
+  const row = await prisma.specialPromotion.update({
     where: { id: specialId },
-    update: data,
-    create: { id: specialId, ...data },
+    data,
   });
 
   revalidateTag("calendar");
@@ -99,13 +40,8 @@ export async function PUT(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const { id } = await params;
   const specialId = Number.parseInt(id, 10);
@@ -138,13 +74,8 @@ export async function PATCH(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
-  let market;
-  try {
-    ({ market } = await requireAdminMarket(req));
-  } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
-    throw err;
-  }
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
 
   const { id } = await params;
   const specialId = Number.parseInt(id, 10);
@@ -153,7 +84,13 @@ export async function DELETE(req, { params }) {
   const owned = await findOwnedOrNull(specialId, market.id);
   if (!owned) return new Response(null, { status: 204 });
 
-  await prisma.specialPromotion.delete({ where: { id: specialId } }).catch(() => {});
+  try {
+    await prisma.specialPromotion.delete({ where: { id: specialId } });
+  } catch (err) {
+    // P2025 = already deleted (race with another request) — fine, treat as success.
+    // Anything else is a real failure and must not be reported as a successful delete.
+    if (err?.code !== "P2025") throw err;
+  }
   revalidateTag("calendar");
   return new Response(null, { status: 204 });
 }
