@@ -3,6 +3,7 @@
 // za javne stranice po hostname-u, za admin rute po sesiji (+ eksplicitni
 // izbor za super admina, preko ?market= ili admin_market kolačića).
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import prisma from "@/lib/db";
 import { getAdminFromRequest } from "@/lib/auth";
 import { withRetry } from "@/lib/withRetry";
@@ -19,6 +20,20 @@ function getCookieValue(cookieHeader, name) {
   const match = header.match(new RegExp(`${name}=([^;]+)`));
   return match ? decodeURIComponent(match[1]) : null;
 }
+
+// Tržište po domenu/kodu se praktično ne menja (seed skripta), a traži se na
+// svakom javnom zahtevu — keš između zahteva, osvežava se na 5 minuta.
+const MARKET_CACHE = { revalidate: 300, tags: ["markets"] };
+const findMarketByDomain = unstable_cache(
+  (domain) => withRetry(() => prisma.market.findUnique({ where: { domain } })),
+  ["market-by-domain"],
+  MARKET_CACHE
+);
+const findMarketByCode = unstable_cache(
+  (code) => withRetry(() => prisma.market.findUnique({ where: { code } })),
+  ["market-by-code"],
+  MARKET_CACHE
+);
 
 // Javne stranice (kalendar, sitemap) — tržište se određuje po domenu na koji
 // je request stigao. To je i jedino relevantno u produkciji: svaki market ima
@@ -38,21 +53,17 @@ export async function resolveMarketByHost(hostHeader, cookieHeader) {
   // u loadCalendarPageData) — withRetry ovde štiti od Neon cold-start-a isto
   // kao i dalje u lancu, jer bez ovoga prvi request posle neaktivnosti baze puca
   // ovde, pre nego što uopšte stigne do već zaštićenog koda.
-  let market = hostname
-    ? await withRetry(() => prisma.market.findUnique({ where: { domain: hostname } }))
-    : null;
+  let market = hostname ? await findMarketByDomain(hostname) : null;
 
   if (!market && process.env.NODE_ENV !== "production") {
     const cookieCode = getCookieValue(cookieHeader, "admin_market");
     if (cookieCode) {
-      market = await withRetry(() => prisma.market.findUnique({ where: { code: cookieCode } }));
+      market = await findMarketByCode(cookieCode);
     }
   }
 
   if (!market && process.env.DEV_DEFAULT_MARKET) {
-    market = await withRetry(() =>
-      prisma.market.findUnique({ where: { code: process.env.DEV_DEFAULT_MARKET } })
-    );
+    market = await findMarketByCode(process.env.DEV_DEFAULT_MARKET);
   }
 
   return market;

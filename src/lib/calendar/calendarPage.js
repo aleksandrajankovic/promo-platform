@@ -49,11 +49,24 @@ function localizedMonthMeta(lang, monthName, year) {
   };
 }
 
+// Javni kalendar ne sme da ide u bazu za svakog posetioca. Sve što stranica
+// čita keširano je između zahteva (tag "calendar"); svaki admin snimak zove
+// revalidateTag("calendar", { expire: 0 }), pa je izmena vidljiva odmah, a
+// revalidate: 300 je samo sigurnosna mreža. marketId je u argumentima, pa je
+// deo ključa — tržišta nikad ne dele keš. (unstable_cache, ne "use cache":
+// stranica je ionako dinamička po host-u, a "use cache" traži uključivanje
+// cacheComponents za celu aplikaciju.)
+const CALENDAR_CACHE = { revalidate: 300, tags: ["calendar"] };
+
 // calendarSettings se traži i iz generateMetadata (buildCalendarMetadata) i iz
-// same stranice (loadCalendarPageData) u istom requestu — cache() dedupuje to
-// na jedan DB upit umesto dva. withRetry je uklopljen unutra, ne oko poziva.
-const getCalendarSettingsCached = cache((marketId) =>
-  withRetry(() => prisma.calendarSettings.findUnique({ where: { marketId } }))
+// same stranice (loadCalendarPageData) u istom requestu — cache() to dodatno
+// dedupuje unutar jednog requesta.
+const getCalendarSettingsCached = cache(
+  unstable_cache(
+    (marketId) => withRetry(() => prisma.calendarSettings.findUnique({ where: { marketId } })),
+    ["calendar-settings"],
+    CALENDAR_CACHE
+  )
 );
 
 // -------------------------
@@ -119,20 +132,32 @@ function normalizeSpecials(rows = [], lang) {
   });
 }
 
-// Keširani DB upiti za promo sadržaj — 5 minuta (settings se uvek čitaju sveže).
-// marketId je deo argumenata pa je automatski deo cache ključa — različita
-// tržišta nikad ne dele isti keširan unos.
-export const getPromoData = unstable_cache(
-  async (marketId, year, month) =>
-    withRetry(async () => {
-      const [weeklyPlanRows, specialRows] = await Promise.all([
-        prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
-        prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
-      ]);
-      return { weeklyPlanRows, specialRows };
-    }),
-  ["promo-data"],
-  { revalidate: 300, tags: ["calendar"] }
+function loadPromoRows(marketId, year, month) {
+  return withRetry(async () => {
+    const [weeklyPlanRows, specialRows] = await Promise.all([
+      prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
+      prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
+    ]);
+    return { weeklyPlanRows, specialRows };
+  });
+}
+
+// Promo sadržaj meseca — keširan za posetioce; admin preview čita uživo.
+export const getPromoData = unstable_cache(loadPromoRows, ["promo-data"], CALENDAR_CACHE);
+
+// Prethodni/sledeći mesec sa promocijama (paginacija) — do 4+ upita, isti za
+// sve posetioce istog meseca. inactiveKeys je sortiran niz (deo cache ključa).
+const getMonthNavCached = unstable_cache(
+  async (marketId, year, month, inactiveKeys) => {
+    const inactiveSet = new Set(inactiveKeys);
+    const [prevMonth, nextMonth] = await Promise.all([
+      findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet),
+      findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet),
+    ]);
+    return { prevMonth, nextMonth };
+  },
+  ["month-nav"],
+  CALENDAR_CACHE
 );
 
 // Vraća {y, m} najbližeg meseca sa promocijama u datom smeru, preskačući neaktivne mesece
@@ -264,18 +289,9 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   // Load promo data — admin dobija live podatke, korisnici keširane (5 min).
   // Paginacija (prevMonth/nextMonth) ne zavisi od weekly/special podataka ni
   // obrnuto, pa idu u isti Promise.all umesto sekvencijalno.
-  const [{ weeklyPlanRows, specialRows }, prevMonth, nextMonth] = await Promise.all([
-    isAdmin
-      ? (async () => {
-          const [weeklyPlanRows, specialRows] = await Promise.all([
-            prisma.weeklyPlan.findMany({ where: { marketId, year, month }, orderBy: { weekday: "asc" } }),
-            prisma.specialPromotion.findMany({ where: { marketId, year, month }, orderBy: [{ day: "asc" }] }),
-          ]);
-          return { weeklyPlanRows, specialRows };
-        })()
-      : getPromoData(marketId, year, month),
-    findNearestMonthWithPromos(marketId, year, month, "prev", inactiveSet),
-    findNearestMonthWithPromos(marketId, year, month, "next", inactiveSet),
+  const [{ weeklyPlanRows, specialRows }, { prevMonth, nextMonth }] = await Promise.all([
+    isAdmin ? loadPromoRows(marketId, year, month) : getPromoData(marketId, year, month),
+    getMonthNavCached(marketId, year, month, [...inactiveSet].sort()),
   ]);
 
   const planned = normWeeklyRows(weeklyPlanRows, resolvedLang);

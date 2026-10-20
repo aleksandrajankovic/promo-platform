@@ -50,7 +50,7 @@ export async function PATCH(req) {
     data: { active },
   });
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return Response.json({ updated: count });
 }
 
@@ -111,7 +111,7 @@ export async function PUT(req) {
     update: data,
   });
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return Response.json(row);
 }
 
@@ -141,6 +141,6 @@ export async function DELETE(req) {
     if (err?.code !== "P2025") throw err;
   }
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return new Response(null, { status: 204 });
 }

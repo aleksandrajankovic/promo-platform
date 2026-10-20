@@ -35,7 +35,7 @@ export async function PUT(req, { params }) {
     data,
   });
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return Response.json(row);
 }
 
@@ -66,7 +66,7 @@ export async function PATCH(req, { params }) {
       where: { id: specialId },
       data: patch,
     });
-    revalidateTag("calendar");
+    revalidateTag("calendar", { expire: 0 });
     return Response.json(row);
   } catch {
     return new Response("not found", { status: 404 });
@@ -91,6 +91,6 @@ export async function DELETE(req, { params }) {
     // Anything else is a real failure and must not be reported as a successful delete.
     if (err?.code !== "P2025") throw err;
   }
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return new Response(null, { status: 204 });
 }

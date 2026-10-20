@@ -32,7 +32,7 @@ export async function PATCH(req) {
     data: { active },
   });
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return Response.json({ updated: count });
 }
 
@@ -48,6 +48,6 @@ export async function POST(req) {
     data: { ...data, active: data.active ?? true },
   });
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return Response.json(created, { status: 201 });
 }

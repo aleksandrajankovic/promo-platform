@@ -142,7 +142,7 @@ export async function PUT(req) {
     create: { marketId: market.id, ...patch },
   });
 
-  revalidateTag("calendar");
+  revalidateTag("calendar", { expire: 0 });
   return Response.json({
     bgImageUrl:       row.bgImageUrl       || "/img/bg-calendar.png",
     bgImageUrlMobile: row.bgImageUrlMobile || "/img/bg-calendar-mobile.png",
