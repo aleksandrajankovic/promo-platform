@@ -6,9 +6,7 @@ import toast from "react-hot-toast";
 import SpecialEditor from "./components/SpecialEditor";
 import AdminTableCard from "../components/AdminTableCard";
 import { confirmDeleteToast } from "../components/ConfirmDeleteToast";
-
-const monthName = (i) =>
-  new Date(2000, i, 1).toLocaleString("en", { month: "long" });
+import MonthNavigator from "../components/MonthNavigator";
 
 export default function SpecialsAdminPage() {
   const [rows, setRows] = useState([]);
@@ -19,8 +17,10 @@ export default function SpecialsAdminPage() {
   const [deletingId, setDeletingId] = useState(null);
   const [loadingIds, setLoadingIds] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [filterMonth, setFilterMonth] = useState(-1);
-  const [filterYear] = useState(new Date().getFullYear());
+  // Podrazumevano tekući mesec — ranije je lista prikazivala sve mesece
+  // odjednom (i filtrirala samo po mesecu, mešajući godine).
+  const [filterYear, setFilterYear] = useState(() => new Date().getFullYear());
+  const [filterMonth, setFilterMonth] = useState(() => new Date().getMonth());
   const pendingToggles = useRef(new Set());
 
   useEffect(() => {
@@ -32,18 +32,36 @@ export default function SpecialsAdminPage() {
         );
         setRows(data);
       })
-      .catch(() => setErr("Ne mogu da učitam specijalne promocije."))
+      .catch(() => setErr("Could not load special promotions."))
       .finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(
-    () =>
-      rows.filter((r) => {
-        if (filterMonth !== -1 && r.month !== filterMonth) return false;
-        return true;
-      }),
-    [rows, filterMonth]
+    () => rows.filter((r) => r.year === filterYear && r.month === filterMonth),
+    [rows, filterYear, filterMonth]
   );
+
+  // broj promocija po mesecu izabrane godine (za traku sa mesecima)
+  const monthCounts = useMemo(() => {
+    const counts = {};
+    for (const r of rows) {
+      if (r.year === filterYear) counts[r.month] = (counts[r.month] || 0) + 1;
+    }
+    return counts;
+  }, [rows, filterYear]);
+
+  // Nova promocija dobija datum u izabranom mesecu: danas ako je to tekući
+  // mesec, inače prvi dan.
+  const newInitial = useMemo(() => {
+    const now = new Date();
+    const isCurrent = now.getFullYear() === filterYear && now.getMonth() === filterMonth;
+    return { year: filterYear, month: filterMonth, day: isCurrent ? now.getDate() : 1 };
+  }, [filterYear, filterMonth]);
+
+  function selectMonth(y, m) {
+    setFilterYear(y);
+    setFilterMonth(m);
+  }
 
   async function handleDelete(id, title) {
     confirmDeleteToast(title, async () => {
@@ -152,25 +170,18 @@ export default function SpecialsAdminPage() {
         </button>
       </div>
 
+      <MonthNavigator
+        year={filterYear}
+        month={filterMonth}
+        counts={monthCounts}
+        onChange={selectMonth}
+      />
+
       {/* Tabela u kartici */}
       <AdminTableCard
-        title="Special Promotions"
+        title={`Special Promotions — ${new Date(filterYear, filterMonth, 1).toLocaleString("en", { month: "long" })} ${filterYear}`}
         headerRight={
           <div className="flex items-center gap-2 flex-wrap">
-            <select
-              className="border border-neutral-300 rounded px-2 py-1 text-sm text-black bg-white"
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(Number(e.target.value))}
-              title="Filter by month"
-            >
-              <option value={-1}>All months</option>
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i} value={i}>
-                  {monthName(i)}
-                </option>
-              ))}
-            </select>
-
             {filtered.length > 0 && (
               <>
                 <button
@@ -215,7 +226,7 @@ export default function SpecialsAdminPage() {
           <>
             {filtered.length === 0 ? (
               <div className="p-4 text-sm text-neutral-500">
-                No promotions match the selected filter.
+                No promotions in this month yet. Use “+ New” to add one.
               </div>
             ) : (
               <ul className="divide-y divide-neutral-200">
@@ -364,7 +375,8 @@ export default function SpecialsAdminPage() {
       {showNew && !editing && (
         <div className="mt-6">
           <SpecialEditor
-            initial={{}}
+            key={`new-${filterYear}-${filterMonth}`}
+            initial={newInitial}
             onCancel={() => setShowNew(false)}
             onSaved={(created) => {
               setRows((prev) => {

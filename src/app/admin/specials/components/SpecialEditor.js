@@ -1,21 +1,27 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import RichEditor from "@/components/admin-shared/RichEditor";
-import ImageGalleryModal from "../../components/ImageGalleryModal";
-import { monthHref } from "@/lib/calendar/calendarUrls";
+import {
+  categoryOptionsFor,
+  usePromoEditorForm,
+  openCalendarPreview,
+  EditorShell,
+  Section,
+  LanguageTabs,
+  CardEffectToggles,
+  TextField,
+  LinkField,
+  ButtonColorPicker,
+  PillSelector,
+  IconField,
+  DescriptionField,
+} from "../../components/PromoEditorFields";
 
-const LOCALE_LABELS = {
-  sr: "Srpski", en: "English", sw: "Swahili", pt: "Portuguese", ba: "Bosanski", el: "Greek",
-};
-
-// kategorije za promo
-const CATEGORIES = [
-  { value: "SPORT", label: "Sport" },
-  { value: "CASINO", label: "Casino" },
-  { value: "MISSIONS", label: "Missions" },
-  { value: "ALL", label: "All" },
-  { value: "GOLD", label: "Zlatna lopta" },
+const KNOCKOUT_OPTIONS = [
+  { value: null, label: "None" },
+  { value: "QUARTER_FINAL", label: "⚽ Quarterfinal (1/4)" },
+  { value: "SEMI_FINAL", label: "⚽ Semifinal (1/2)" },
+  { value: "FINAL", label: "🏆 Final" },
 ];
 
 // yyyy-mm-dd ⇄ {year, month(0-11), day}
@@ -38,8 +44,6 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
     const m = initial?.month ?? now.getMonth(); // 0..11
     const d = initial?.day ?? now.getDate();
 
-    const baseTranslations = initial?.translations || {};
-
     return {
       id: initial?.id ?? null,
       year: y,
@@ -53,95 +57,48 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       flipCard: !!initial?.flipCard,
       buttonColor: initial?.buttonColor ?? "green",
 
-      translations: baseTranslations,
+      translations: initial?.translations || {},
 
       category: initial?.category || "ALL",
       knockoutPhase: initial?.knockoutPhase || null,
     };
   }, [initial]);
 
-  const [form, setForm] = useState(seed);
+  const {
+    form, setForm, setField, setTranslationField,
+    market, activeLang, setActiveLang, currentT, langSuffix,
+    validateActiveTranslation, contentPayload, themeFor,
+  } = usePromoEditorForm(seed, initial);
   const [saving, setSaving] = useState(false);
-  const [market, setMarket] = useState(null);
-  const [activeLang, setActiveLang] = useState("sr");
-  const [showIconGallery, setShowIconGallery] = useState(false);
 
-  // Tržište (i time koji jezici imaju smisla za ovaj editor) zavisi od toga
-  // koji je market trenutno izabran u admin market switcher-u — nije fiksno
-  // po fajlu kao ranije (svaki market je imao svoju kopiju editora).
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/admin/current-market")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((m) => {
-        if (cancelled || !m) return;
-        setMarket(m);
-        setActiveLang(m.defaultLocale);
+  // Golden Ball i knockout faza važe samo u mesecima sa football temom (API
+  // ih inače odbija). Dok se tema ne učita (null), ne skrivamo ništa.
+  const theme = themeFor(form.year, form.month);
+  const isFootball = theme === null || theme === "football";
+  const categoryOptions = categoryOptionsFor(isFootball ? "football" : theme);
+  const invalidForTheme =
+    theme !== null && !isFootball && (form.category === "GOLD" || !!form.knockoutPhase);
 
-        // Stari flat redovi (pre translations polja) — prebaci top-level
-        // title/richHtml/... u translations[defaultLocale] jednom, na otvaranju.
-        setForm((prev) => {
-          if (prev.translations?.[m.defaultLocale]) return prev;
-          if (!initial?.title && !initial?.richHtml) return prev;
-          return {
-            ...prev,
-            translations: {
-              ...prev.translations,
-              [m.defaultLocale]: {
-                title: initial?.title ?? "",
-                button: initial?.button ?? "",
-                rich: initial?.rich ?? null,
-                richHtml: initial?.richHtml ?? "",
-                link: initial?.link ?? "",
-              },
-            },
-          };
-        });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
-
-  function setTranslationField(lang, key, value) {
-    setForm((prev) => {
-      const prevTranslations = prev.translations || {};
-      const prevLangObj = prevTranslations[lang] || {};
-      return {
-        ...prev,
-        translations: {
-          ...prevTranslations,
-          [lang]: {
-            ...prevLangObj,
-            [key]: value,
-          },
-        },
-      };
-    });
-  }
-
-  function handlePreviewCalendar() {
-    const y = form.year || new Date().getFullYear();
-    const m =
-      typeof form.month === "number" ? form.month : new Date().getMonth();
-
-    const url = monthHref(y, m);
-    window.open(url, "_blank", "noopener,noreferrer");
+  function onDateChange(v) {
+    const ymd = ymdFromDateInput(v);
+    const nextTheme = ymd ? themeFor(ymd.year, ymd.month) : null;
+    const resetFootball =
+      nextTheme && nextTheme !== "football" && (form.category === "GOLD" || form.knockoutPhase);
+    setForm((prev) => ({
+      ...prev,
+      dateStr: v,
+      ...(ymd || {}),
+      ...(resetFootball ? { category: prev.category === "GOLD" ? "ALL" : prev.category, knockoutPhase: null } : {}),
+    }));
+    if (resetFootball) {
+      toast("Golden Ball and knockout phase only exist in football-theme months — reset.", { icon: "ℹ️" });
+    }
   }
 
   async function save() {
-    const currentT = form.translations?.[activeLang] || {};
-
-    if (!currentT.title?.trim()) {
-      toast.error("Title is required for the active language.");
-      return;
-    }
-    if (!currentT.richHtml?.trim()) {
-      toast.error("Content is required for the active language.");
+    if (!validateActiveTranslation()) return;
+    if (invalidForTheme) {
+      toast.error("Golden Ball / knockout phase are only allowed in football-theme months.");
       return;
     }
 
@@ -161,31 +118,11 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       const url = isEdit ? `/api/special/${form.id}` : `/api/special`;
       const method = isEdit ? "PUT" : "POST";
 
-      const translations = form.translations || {};
-      const mainT = translations[activeLang] || {};
-      const mainLink = mainT.link || form.link || "";
-
       const payload = {
+        ...contentPayload(),
         year: form.year,
         month: form.month,
         day: form.day,
-
-        icon: form.icon,
-        link: mainLink,
-
-        active: !!form.active,
-        scratch: !!form.scratch,
-        flipCard: !!form.flipCard,
-        buttonColor: form.buttonColor || "green",
-
-        translations,
-        defaultLang: activeLang,
-
-        title: mainT.title || "",
-        button: mainT.button || "",
-        rich: mainT.rich || null,
-        richHtml: mainT.richHtml || "",
-        category: form.category || "ALL",
         knockoutPhase: form.knockoutPhase || null,
       };
 
@@ -207,372 +144,102 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
     }
   }
 
-  const currentT = form.translations?.[activeLang] || {};
-
   return (
-    <>
-      {/* Top bar: Back + title + actions */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="text-sm text-[#AC1C09] hover:underline"
-          >
-            ← Back
-          </button>
-          <div className="text-base font-semibold text-neutral-900">
-            New Special Promotion
-          </div>
+    <EditorShell
+      heading={
+        <div className="text-base font-semibold text-neutral-900">
+          {form.id ? "Edit Special Promotion" : "New Special Promotion"}
         </div>
+      }
+      active={form.active}
+      onToggleActive={() => setField("active", !form.active)}
+      onPreview={() => openCalendarPreview(form.year, form.month)}
+      onCancel={onCancel}
+      onSave={save}
+      saving={saving}
+    >
+      <LanguageTabs market={market} activeLang={activeLang} onChange={setActiveLang} />
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-[18px] py-[7px] rounded bg-[#C43D2F] font-condensed text-white text-xs hover:brightness-110"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="px-[18px] py-[7px] rounded bg-[#17BB00] text-white text-xs font-condensed hover:brightness-110 disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-6 bg-white border border-neutral-200 rounded-lg shadow-sm p-4 md:p-5 space-y-5">
-        {/* Jezički tabovi — samo kad tržište ima više od jednog jezika */}
-        {market?.locales?.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-neutral-100">
-            {market.locales.map((code) => (
-              <button
-                key={code}
-                type="button"
-                onClick={() => setActiveLang(code)}
-                className={`px-3 py-1.5 text-xs border-b-2 ${
-                  activeLang === code
-                    ? "border-[#AC1C09] text-[#AC1C09] font-semibold"
-                    : "border-transparent text-neutral-600 hover:text-neutral-900"
-                }`}
-              >
-                {LOCALE_LABELS[code] || code.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Active toggle + Preview */}
-        <div className="pb-2">
-          <label className="flex items-center justify-between gap-2 text-sm text-neutral-800">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => set("active", !form.active)}
-                className={`h-5 w-5 rounded-sm border flex items-center justify-center ${
-                  form.active
-                    ? "bg-[#17BB00] border-[#17BB00]"
-                    : "bg-white border-neutral-400"
-                }`}
-              >
-                {form.active && (
-                  <span className="text-white text-xs leading-none">
-                    <svg
-                      width="13"
-                      height="10"
-                      viewBox="0 0 13 10"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M11.2667 1L4.20833 8.05833L1 4.85"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                )}
-              </button>
-              <span className="text-[#989898] text-xs">Active</span>
-            </div>
-            <button
-              type="button"
-              onClick={handlePreviewCalendar}
-              className="px-[18px] py-[7px] rounded bg-[#17BB00] text-white text-xs font-condensed hover:brightness-110"
-            >
-              Preview calendar
-            </button>
-          </label>
-        </div>
-
-        {/* Scratch toggle */}
-        <div className="pb-2">
-          <label className="flex items-center gap-2 text-sm text-neutral-800">
-            <input
-              type="checkbox"
-              checked={!!form.scratch}
-              onChange={(e) => set("scratch", e.target.checked)}
-            />
-            Enable scratch card
-          </label>
-        </div>
-
-        {/* Flip card toggle */}
-        <div className="pb-2">
-          <label className="flex items-center gap-2 text-sm text-neutral-800">
-            <input
-              type="checkbox"
-              checked={!!form.flipCard}
-              onChange={(e) => set("flipCard", e.target.checked)}
-            />
-            Enable flip card
-          </label>
-        </div>
-
-        {/* Title + Date */}
-        <div className="grid md:grid-cols-2 gap-4 text-neutral-800">
+      <Section title="Content">
+        <div className="grid md:grid-cols-[minmax(0,1fr)_200px] gap-4 text-neutral-800">
+          <TextField
+            label={`Title${langSuffix}`}
+            value={currentT.title}
+            onChange={(v) => setTranslationField(activeLang, "title", v)}
+          />
           <label className="block">
-            <span className="text-sm mb-1 inline-block">
-              Title{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
-            </span>
-            <input
-              className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
-              value={currentT.title || ""}
-              onChange={(e) =>
-                setTranslationField(activeLang, "title", e.target.value)
-              }
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm mb-1 inline-block">Date from</span>
+            <span className="text-sm mb-1 inline-block">Date</span>
             <input
               type="date"
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={form.dateStr}
-              onChange={(e) => {
-                const v = e.target.value;
-                const ymd = ymdFromDateInput(v);
-                if (ymd) {
-                  setForm((prev) => ({
-                    ...prev,
-                    dateStr: v,
-                    year: ymd.year,
-                    month: ymd.month,
-                    day: ymd.day,
-                  }));
-                } else {
-                  setForm((prev) => ({ ...prev, dateStr: v }));
-                }
-              }}
+              onChange={(e) => onDateChange(e.target.value)}
             />
           </label>
         </div>
 
-        {/* Button label + Button link + Button Color */}
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_auto] items-end">
-          <label className="block text-sm text-neutral-800">
-            <span className="mb-1 inline-block">
-              Button label{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
-            </span>
-            <input
-              className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
-              value={currentT.button || ""}
-              onChange={(e) =>
-                setTranslationField(activeLang, "button", e.target.value)
-              }
-            />
-          </label>
+        <DescriptionField
+          label={`Description${langSuffix}`}
+          activeLang={activeLang}
+          currentT={currentT}
+          setTranslationField={setTranslationField}
+        />
+      </Section>
 
-          <label className="block text-sm text-neutral-800">
-            <span className="mb-1 inline-block">
-              Button link{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
-            </span>
-            <input
-              className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
-              value={currentT.link || ""}
-              onChange={(e) =>
-                setTranslationField(activeLang, "link", e.target.value)
-              }
-              placeholder="https://..."
-            />
-          </label>
-
-          {/* Button Color */}
-          <div className="flex flex-col items-start md:items-end w-full md:w-auto">
-            <span className="mb-1 inline-block text-sm text-neutral-800">
-              Button Color
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => set("buttonColor", "yellow")}
-                className={`h-7 w-7 rounded-full flex items-center justify-center border transition
-    ${form.buttonColor === "yellow" ? "border-black" : "border-transparent"}`}
-                aria-label="Yellow button"
-              >
-                <span className="h-6 w-6 rounded-full bg-[#FFCB05] flex items-center justify-center">
-                  {form.buttonColor === "yellow" && (
-                    <span className="text-black text-[10px] leading-none">
-                      ✓
-                    </span>
-                  )}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => set("buttonColor", "green")}
-                className={`h-7 w-7 rounded-full flex items-center justify-center border transition
-          ${
-            form.buttonColor === "green" ? "border-black" : "border-transparent"
-          }`}
-                aria-label="Green button"
-              >
-                <span className="h-6 w-6 rounded-full bg-[#17BB00] flex items-center justify-center">
-                  {form.buttonColor === "green" && (
-                    <span className="text-white text-[10px] leading-none">
-                      ✓
-                    </span>
-                  )}
-                </span>
-              </button>
-            </div>
-          </div>
+      <Section title="Button">
+        <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_auto] items-start">
+          <TextField
+            label={`Label${langSuffix}`}
+            value={currentT.button}
+            onChange={(v) => setTranslationField(activeLang, "button", v)}
+          />
+          <LinkField
+            label={`Link${langSuffix}`}
+            value={currentT.link}
+            onChange={(v) => setTranslationField(activeLang, "link", v)}
+          />
+          <ButtonColorPicker
+            value={form.buttonColor}
+            onChange={(v) => setField("buttonColor", v)}
+          />
         </div>
+      </Section>
 
-        {/* Category selector */}
-        <div className="mt-2">
-          <span className="mb-1 inline-block text-sm text-neutral-800">
-            Category
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => {
-              const selected = form.category === cat.value;
-              return (
-                <button
-                  key={cat.value}
-                  type="button"
-                  onClick={() => set("category", cat.value)}
-                  className={
-                    "px-3 py-1 rounded-full text-[11px] font-medium border transition " +
-                    (selected
-                      ? "bg-[#17BB00] text-white border-[#17BB00]"
-                      : "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-100")
-                  }
-                >
-                  {cat.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      <Section title="Appearance">
+        <IconField value={form.icon} onChange={(v) => setField("icon", v)} />
 
-        {/* Knockout phase */}
-        <div className="mt-2">
-          <span className="mb-1 inline-block text-sm text-neutral-800">
-            Knockout faza{" "}
-            <span className="text-neutral-400 font-normal">(kombinuje se sa kategorijom)</span>
-          </span>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { value: null, label: "Nema" },
-              { value: "QUARTER_FINAL", label: "⚽ Četvrtfinale (1/4)" },
-              { value: "SEMI_FINAL", label: "⚽ Polufinale (1/2)" },
-              { value: "FINAL", label: "🏆 Finale" },
-            ].map((opt) => {
-              const selected = (form.knockoutPhase || null) === opt.value;
-              return (
-                <button
-                  key={String(opt.value)}
-                  type="button"
-                  onClick={() => set("knockoutPhase", opt.value)}
-                  className={
-                    "px-3 py-1 rounded-full text-[11px] font-medium border transition " +
-                    (selected
-                      ? "bg-[#17BB00] text-white border-[#17BB00]"
-                      : "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-100")
-                  }
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <PillSelector
+          label="Category"
+          options={categoryOptions}
+          value={form.category}
+          onChange={(v) => setField("category", v)}
+        />
 
-        {/* Icon */}
-        <div className="mt-3">
-          <label className="block text-sm text-neutral-800">
-            <span className="mb-1 inline-block">Icon</span>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                className="flex-1 min-w-0 border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
-                value={form.icon || ""}
-                onChange={(e) => set("icon", e.target.value)}
-                placeholder="/uploads/promo-icon.webp"
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowIconGallery(true)}
-                className="shrink-0 font-condensed inline-flex items-center justify-center px-4 py-[10px] rounded bg-[#1F2933] text-white text-xs hover:brightness-110 whitespace-nowrap"
-              >
-                Choose from gallery
-              </button>
-            </div>
-
-            {form.icon && (
-              <div className="mt-2 flex items-center gap-3">
-                <img
-                  src={form.icon}
-                  alt="icon preview"
-                  className="w-8 h-8 object-contain border border-neutral-200 rounded bg-white"
-                />
-                <code className="text-xs text-neutral-500 break-all">
-                  {form.icon}
-                </code>
-              </div>
-            )}
-          </label>
-        </div>
-
-        {/* Gallery modal */}
-        {showIconGallery && (
-          <ImageGalleryModal
-            onSelect={(url) => {
-              set("icon", url);
-              setShowIconGallery(false);
-            }}
-            onClose={() => setShowIconGallery(false)}
+        {isFootball && (
+          <PillSelector
+            label={
+              <>
+                Knockout Phase{" "}
+                <span className="text-neutral-400 font-normal">(combines with category)</span>
+              </>
+            }
+            options={KNOCKOUT_OPTIONS}
+            value={form.knockoutPhase || null}
+            onChange={(v) => setField("knockoutPhase", v)}
           />
         )}
 
-        {/* Rich text editor */}
-        <div>
-          <span className="text-sm text-neutral-800 block mb-1.5">
-            Description{market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : ""}
-          </span>
-          <div className="border border-[#D0D0D0] rounded">
-            <RichEditor
-              key={activeLang}
-              initialJSON={currentT.rich || null}
-              onChange={({ json, html }) => {
-                setTranslationField(activeLang, "rich", json);
-                setTranslationField(activeLang, "richHtml", html);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    </>
+        {invalidForTheme && (
+          <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            This promotion uses Golden Ball / a knockout phase, which only exist in football-theme
+            months. Pick another category or a football month before saving.
+          </p>
+        )}
+      </Section>
+
+      <Section title="Effects">
+        <CardEffectToggles form={form} setField={setField} />
+      </Section>
+    </EditorShell>
   );
 }

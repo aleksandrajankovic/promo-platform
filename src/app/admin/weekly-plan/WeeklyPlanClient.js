@@ -4,20 +4,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useWeeklyPlan } from "./useWeeklyPlan";
-import WeeklyEditor from "../weekly/components/WeeklyEditor";
+import WeeklyEditor from "./components/WeeklyEditor";
 import AdminTableCard from "../components/AdminTableCard";
 import { StatusToggleButton, IconButton } from "../components/AdminTableButtons";
 import { confirmDeleteToast } from "../components/ConfirmDeleteToast";
-
-const LABELS = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-];
+import { WEEKDAY_LABELS } from "../components/PromoEditorFields";
+import { PreviewCalendarButton } from "../components/MonthNavigator";
 
 export default function WeeklyPlanAdmin() {
   const sp = useSearchParams();
@@ -111,11 +103,14 @@ export default function WeeklyPlanAdmin() {
   return (
     <>
       {/* Naslov + opis */}
-      <div className="mb-2">
-        <h1 className="text-xl font-semibold">Backoffice - Monthly Promotions</h1>
-        <p className="text-sm text-neutral-500">
-          Review and edit weekly promotions for the selected month{" "}
-        </p>
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Backoffice - Monthly Promotions</h1>
+          <p className="text-sm text-neutral-500">
+            Review and edit weekly promotions for the selected month{" "}
+          </p>
+        </div>
+        <PreviewCalendarButton year={year} month={month} />
       </div>
 
       <AdminTableCard
@@ -209,7 +204,7 @@ export default function WeeklyPlanAdmin() {
                   }`}
                 >
                   {/* Day */}
-                  <div className="text-sm text-[#646464]">{LABELS[wd]}</div>
+                  <div className="text-sm text-[#646464]">{WEEKDAY_LABELS[wd]}</div>
 
                   {/* Name */}
                   <div className="font-semibold text-sm text-[var(--black-white-90)]">
@@ -260,7 +255,7 @@ export default function WeeklyPlanAdmin() {
                       <IconButton
                         variant="delete"
                         onClick={() =>
-                          confirmDeleteToast(r.title || LABELS[wd], () =>
+                          confirmDeleteToast(r.title || WEEKDAY_LABELS[wd], () =>
                             remove(wd)
                           )
                         }
