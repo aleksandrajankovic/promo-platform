@@ -13,11 +13,12 @@ export default function AdminUsersPage() {
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
   const [role, setRole] = useState("ADMIN");
-  const [marketId, setMarketId] = useState("");
+  const [marketIds, setMarketIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editMarketIds, setEditMarketIds] = useState([]);
 
   // ucitavanje liste admina i trzista
   useEffect(() => {
@@ -47,7 +48,6 @@ export default function AdminUsersPage() {
         if (marketsRes.ok) {
           const marketData = await marketsRes.json();
           setMarkets(marketData);
-          if (marketData.length && !marketId) setMarketId(marketData[0].id);
         }
       } catch (err) {
         console.error(err);
@@ -66,8 +66,8 @@ export default function AdminUsersPage() {
       toast.error("Fill in all fields.");
       return;
     }
-    if (role === "ADMIN" && !marketId) {
-      toast.error("Pick a market for this admin.");
+    if (role === "ADMIN" && !marketIds.length) {
+      toast.error("Pick at least one market for this admin.");
       return;
     }
     setSaving(true);
@@ -80,7 +80,7 @@ export default function AdminUsersPage() {
           email: email.trim(),
           password: pwd.trim(),
           role,
-          marketId: role === "ADMIN" ? marketId : null,
+          marketIds: role === "ADMIN" ? marketIds : [],
         }),
       });
 
@@ -106,6 +106,7 @@ export default function AdminUsersPage() {
       setEmail("");
       setPwd("");
       setRole("ADMIN");
+      setMarketIds([]);
     } catch (err) {
       console.error(err);
       toast.error("Failed to create admin user.");
@@ -117,17 +118,24 @@ export default function AdminUsersPage() {
     setEditingId(admin.id);
     setEditName(admin.name);
     setEditEmail(admin.email);
+    setEditMarketIds((admin.markets || []).map((m) => m.id));
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditName("");
     setEditEmail("");
+    setEditMarketIds([]);
   }
 
-  async function saveEdit(id) {
+  async function saveEdit(admin) {
+    const { id } = admin;
     if (!editName.trim() || !editEmail.trim()) {
       toast.error("Fill in name and email.");
+      return;
+    }
+    if (admin.role === "ADMIN" && !editMarketIds.length) {
+      toast.error("Pick at least one market for this admin.");
       return;
     }
 
@@ -138,6 +146,7 @@ export default function AdminUsersPage() {
         body: JSON.stringify({
           name: editName.trim(),
           email: editEmail.trim(),
+          ...(admin.role === "ADMIN" ? { marketIds: editMarketIds } : {}),
         }),
       });
 
@@ -250,7 +259,7 @@ export default function AdminUsersPage() {
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
-                <option value="ADMIN">Admin (one market)</option>
+                <option value="ADMIN">Admin (selected markets)</option>
                 <option value="SUPER_ADMIN">Super admin (all markets)</option>
               </select>
             </div>
@@ -258,19 +267,9 @@ export default function AdminUsersPage() {
             {role === "ADMIN" && (
               <div className="sm:col-span-1">
                 <label className="block text-sm font-medium text-slate-700">
-                  Market
+                  Markets
                 </label>
-                <select
-                  className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  value={marketId}
-                  onChange={(e) => setMarketId(e.target.value)}
-                >
-                  {markets.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} ({m.code})
-                    </option>
-                  ))}
-                </select>
+                <MarketCheckboxes markets={markets} value={marketIds} onChange={setMarketIds} />
               </div>
             )}
 
@@ -313,7 +312,7 @@ export default function AdminUsersPage() {
                       Email
                     </th>
                     <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      Role
+                      Role / markets
                     </th>
                     <th className="text-left py-2 px-3 font-medium text-slate-700">
                       Created
@@ -363,10 +362,19 @@ export default function AdminUsersPage() {
                             <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                               SUPER
                             </span>
+                          ) : isEditing ? (
+                            <MarketCheckboxes markets={markets} value={editMarketIds} onChange={setEditMarketIds} />
                           ) : (
-                            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                              {a.market?.code?.toUpperCase() || "ADMIN"}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {(a.markets?.length ? a.markets : [{ code: "admin" }]).map((m) => (
+                                <span
+                                  key={m.code}
+                                  className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700"
+                                >
+                                  {m.code.toUpperCase()}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </td>
 
@@ -381,7 +389,7 @@ export default function AdminUsersPage() {
                             <div className="flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => saveEdit(a.id)}
+                                onClick={() => saveEdit(a)}
                                 className="text-xs px-3 py-1 rounded bg-[var(--green-primary)] text-white hover:brightness-110"
                               >
                                 Save
@@ -423,5 +431,21 @@ export default function AdminUsersPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+function MarketCheckboxes({ markets, value, onChange }) {
+  function toggle(id) {
+    onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
+  }
+  return (
+    <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+      {markets.map((m) => (
+        <label key={m.id} className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+          <input type="checkbox" checked={value.includes(m.id)} onChange={() => toggle(m.id)} />
+          {m.code.toUpperCase()}
+        </label>
+      ))}
+    </div>
   );
 }

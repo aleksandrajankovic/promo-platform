@@ -25,23 +25,23 @@ export default function AdminHeader() {
         const data = await res.json();
         setUser(data);
 
-        // Super admin bira tržište; obični admin je zaključan na svoje.
+        // Super admin bira između svih tržišta; obični admin između svojih
+        // dodeljenih (switcher se prikazuje samo ako ih ima više od jednog).
+        let marketData = data.markets || [];
         if (data.role === "SUPER_ADMIN") {
           const marketsRes = await fetch("/api/admin/markets", { cache: "no-store" });
-          if (marketsRes.ok) {
-            const marketData = await marketsRes.json();
-            setMarkets(marketData);
+          marketData = marketsRes.ok ? await marketsRes.json() : [];
+        }
+        setMarkets(marketData);
 
-            const cookieMarket = getCookie("admin_market");
-            if (cookieMarket && marketData.some((m) => m.code === cookieMarket)) {
-              setCurrentMarket(cookieMarket);
-            } else if (marketData.length) {
-              // Nijedno tržište još nije izabrano (nova sesija) — postavi prvo kao default
-              // da postojeći fetch pozivi po admin stranicama ne padaju u grešku.
-              document.cookie = `admin_market=${marketData[0].code}; path=/; SameSite=Strict`;
-              setCurrentMarket(marketData[0].code);
-            }
-          }
+        const cookieMarket = getCookie("admin_market");
+        if (cookieMarket && marketData.some((m) => m.code === cookieMarket)) {
+          setCurrentMarket(cookieMarket);
+        } else if (marketData.length) {
+          // Nijedno (ili tuđe) tržište još nije izabrano — postavi prvo kao default
+          // da postojeći fetch pozivi po admin stranicama ne padaju u grešku.
+          document.cookie = `admin_market=${marketData[0].code}; path=/; SameSite=Strict`;
+          setCurrentMarket(marketData[0].code);
         }
       } catch (e) {
         console.error(e);
@@ -75,13 +75,13 @@ export default function AdminHeader() {
 
       <div className="flex items-stretch border-l border-[#C93A25]">
 
-        {user?.role === "SUPER_ADMIN" && markets.length > 0 && (
+        {(user?.role === "SUPER_ADMIN" ? markets.length > 0 : markets.length > 1) && (
           <div className="flex items-center gap-2 px-3 border-r border-[#C93A25]">
             <select
               value={currentMarket}
               onChange={onMarketChange}
               className="bg-[#8f1707] text-white text-sm rounded px-2 py-1 border border-[#C93A25] focus:outline-none"
-              title="Tržište koje uređuješ"
+              title="Market you are editing"
             >
               {markets.map((m) => (
                 <option key={m.code} value={m.code}>

@@ -3,53 +3,46 @@ export const runtime = "nodejs";
 
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
-import { requireSuperAdminSession, MarketScopeError } from "@/lib/marketScope";
+import { ADMIN_USER_SELECT } from "@/lib/adminUserSelect";
+import { normalizeMarketIds, requireSuperAdminSessionOrResponse } from "@/lib/marketScope";
 
 // GET /api/admin/users  -> lista svih admina (samo super admin, vidi sva tržišta)
 export async function GET(req) {
-  try {
-    await requireSuperAdminSession(req);
+  const { errorResponse } = await requireSuperAdminSessionOrResponse(req);
+  if (errorResponse) return errorResponse;
 
+  try {
     const admins = await prisma.adminUser.findMany({
       orderBy: { id: "asc" },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        marketId: true,
-        market: { select: { code: true, name: true } },
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: ADMIN_USER_SELECT,
     });
 
     return Response.json(admins);
   } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("List admins error:", err);
     return new Response("Error", { status: 500 });
   }
 }
 
 export async function POST(req) {
-  try {
-    await requireSuperAdminSession(req);
+  const { errorResponse } = await requireSuperAdminSessionOrResponse(req);
+  if (errorResponse) return errorResponse;
 
+  try {
     const body = await req.json().catch(() => ({}));
-    let { name, email, password, role, marketId } = body;
+    let { name, email, password, role, marketIds } = body;
 
     name = (name || "").trim();
     email = (email || "").trim().toLowerCase();
     password = (password || "").trim();
     role = role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN";
-    marketId = role === "SUPER_ADMIN" ? null : (marketId || "").trim();
+    marketIds = role === "SUPER_ADMIN" ? [] : normalizeMarketIds(marketIds);
 
     if (!name || !email || !password) {
       return new Response("Missing fields", { status: 400 });
     }
-    if (role === "ADMIN" && !marketId) {
-      return new Response("marketId is required for a non-super admin", { status: 400 });
+    if (role === "ADMIN" && !marketIds.length) {
+      return new Response("marketIds is required for a non-super admin", { status: 400 });
     }
 
     const existing = await prisma.adminUser.findUnique({ where: { email } });
@@ -57,21 +50,20 @@ export async function POST(req) {
       return new Response("Email already in use", { status: 409 });
     }
 
-    if (marketId) {
-      const market = await prisma.market.findUnique({ where: { id: marketId } });
-      if (!market) return new Response("Unknown marketId", { status: 400 });
+    if (marketIds.length) {
+      const found = await prisma.market.count({ where: { id: { in: marketIds } } });
+      if (found !== marketIds.length) return new Response("Unknown marketId", { status: 400 });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
     const newAdmin = await prisma.adminUser.create({
-      data: { name, email, passwordHash, role, marketId },
-      select: { id: true, name: true, email: true, role: true, marketId: true, createdAt: true },
+      data: { name, email, passwordHash, role, markets: { connect: marketIds.map((id) => ({ id })) } },
+      select: ADMIN_USER_SELECT,
     });
 
     return Response.json(newAdmin, { status: 201 });
   } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("Create admin error:", err);
     return new Response("Error", { status: 500 });
   }

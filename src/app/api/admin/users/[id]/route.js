@@ -2,15 +2,17 @@
 export const runtime = "nodejs";
 
 import prisma from "@/lib/db";
-import { requireSuperAdminSession, MarketScopeError } from "@/lib/marketScope";
+import { ADMIN_USER_SELECT } from "@/lib/adminUserSelect";
+import { normalizeMarketIds, requireSuperAdminSessionOrResponse } from "@/lib/marketScope";
 
 // PATCH /api/admin/users/:id  -> edit name/email/role/market (samo super admin)
 export async function PATCH(req, { params }) {
   const { id: idParam } = await params;
 
-  try {
-    await requireSuperAdminSession(req);
+  const { errorResponse } = await requireSuperAdminSessionOrResponse(req);
+  if (errorResponse) return errorResponse;
 
+  try {
     const id = Number(idParam);
     if (!Number.isInteger(id)) return new Response("Bad id", { status: 400 });
 
@@ -19,18 +21,21 @@ export async function PATCH(req, { params }) {
     if (body.name) data.name = String(body.name).trim();
     if (body.email) data.email = String(body.email).trim().toLowerCase();
     if (body.role === "SUPER_ADMIN" || body.role === "ADMIN") data.role = body.role;
-    if ("marketId" in body) data.marketId = body.marketId || null;
+    const marketIds = "marketIds" in body ? normalizeMarketIds(body.marketIds) : undefined;
 
-    if (!Object.keys(data).length) {
+    if (!Object.keys(data).length && marketIds === undefined) {
       return new Response("Nothing to update", { status: 400 });
     }
 
     const finalRole = data.role ?? (await prisma.adminUser.findUnique({ where: { id }, select: { role: true } }))?.role;
-    const finalMarketId = "marketId" in data ? data.marketId : undefined;
-    if (finalRole === "ADMIN" && finalMarketId === null) {
-      return new Response("marketId is required for a non-super admin", { status: 400 });
+    if (finalRole === "ADMIN" && marketIds !== undefined && !marketIds.length) {
+      return new Response("marketIds is required for a non-super admin", { status: 400 });
     }
-    if (finalRole === "SUPER_ADMIN") data.marketId = null;
+    if (finalRole === "SUPER_ADMIN") {
+      data.markets = { set: [] };
+    } else if (marketIds !== undefined) {
+      data.markets = { set: marketIds.map((mid) => ({ id: mid })) };
+    }
 
     if (data.email) {
       const existing = await prisma.adminUser.findUnique({ where: { email: data.email } });
@@ -38,20 +43,19 @@ export async function PATCH(req, { params }) {
         return new Response("Email already in use", { status: 409 });
       }
     }
-    if (data.marketId) {
-      const market = await prisma.market.findUnique({ where: { id: data.marketId } });
-      if (!market) return new Response("Unknown marketId", { status: 400 });
+    if (marketIds?.length && finalRole !== "SUPER_ADMIN") {
+      const found = await prisma.market.count({ where: { id: { in: marketIds } } });
+      if (found !== marketIds.length) return new Response("Unknown marketId", { status: 400 });
     }
 
     const updated = await prisma.adminUser.update({
       where: { id },
       data,
-      select: { id: true, name: true, email: true, role: true, marketId: true, createdAt: true, updatedAt: true },
+      select: ADMIN_USER_SELECT,
     });
 
     return Response.json(updated);
   } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("Update admin error:", err);
     return new Response("Error", { status: 500 });
   }
@@ -61,9 +65,10 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   const { id: idParam } = await params;
 
-  try {
-    const session = await requireSuperAdminSession(req);
+  const { session, errorResponse } = await requireSuperAdminSessionOrResponse(req);
+  if (errorResponse) return errorResponse;
 
+  try {
     const id = Number(idParam);
     if (!Number.isInteger(id)) return new Response("Bad id", { status: 400 });
 
@@ -86,7 +91,6 @@ export async function DELETE(req, { params }) {
     await prisma.adminUser.delete({ where: { id } });
     return new Response(null, { status: 204 });
   } catch (err) {
-    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
     console.error("Delete admin error:", err);
     return new Response("Error", { status: 500 });
   }

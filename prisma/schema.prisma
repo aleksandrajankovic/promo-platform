@@ -42,7 +42,7 @@ model Market {
 model CalendarSettings {
   id                 Int      @id @default(autoincrement())
   marketId           String
-  market             Market   @relation(fields: [marketId], references: [id])
+  market             Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
   bgImageUrl         String?
   bgImageUrlMobile   String?
   monthBackgrounds   Json?
@@ -55,6 +55,7 @@ model CalendarSettings {
   countdownLabel     String?
   leaderboard        Json?
   scratchCoverUrl    String?
+  scratchCursorUrl   String?
   updatedAt          DateTime @updatedAt
 
   @@unique([marketId])
@@ -63,7 +64,7 @@ model CalendarSettings {
 model SpecialPromotion {
   id            Int      @id @default(autoincrement())
   marketId      String
-  market        Market   @relation(fields: [marketId], references: [id])
+  market        Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
   year          Int
   month         Int
   day           Int
@@ -82,13 +83,15 @@ model SpecialPromotion {
   translations Json?
   category     PromoCategory @default(ALL)
 
+  updatedAt DateTime @updatedAt
+
   @@index([marketId, year, month])
 }
 
 model WeeklyPlan {
   id          Int      @id @default(autoincrement())
   marketId    String
-  market      Market   @relation(fields: [marketId], references: [id])
+  market      Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
   year        Int
   month       Int
   weekday     Int
@@ -106,6 +109,8 @@ model WeeklyPlan {
   translations Json?
   category     PromoCategory @default(ALL)
 
+  updatedAt DateTime @updatedAt
+
   @@unique([marketId, year, month, weekday])
 }
 
@@ -115,8 +120,9 @@ model AdminUser {
   email        String   @unique
   passwordHash String
   role         Role     @default(ADMIN)
-  marketId     String?
-  market       Market?  @relation(fields: [marketId], references: [id])
+  // ADMIN može da ima više tržišta (npr. jedan čovek vodi BR i ME); SUPER_ADMIN
+  // ih nema — vidi sva.
+  markets      Market[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }

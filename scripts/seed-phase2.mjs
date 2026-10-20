@@ -31,7 +31,7 @@ const passwordHash = await bcrypt.hash(password, 10);
 
 const admin = await prisma.adminUser.upsert({
   where: { email },
-  update: { passwordHash, role: "SUPER_ADMIN", marketId: null },
+  update: { passwordHash, role: "SUPER_ADMIN", markets: { set: [] } },
   create: { name: "Aleksandra Jankovic", email, passwordHash, role: "SUPER_ADMIN" },
 });
 console.log("Admin:", admin.email, "role:", admin.role);

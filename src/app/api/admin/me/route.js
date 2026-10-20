@@ -2,6 +2,7 @@
 export const runtime = "nodejs";
 
 import prisma from "@/lib/db";
+import { MARKET_SUMMARY_SELECT } from "@/lib/adminUserSelect";
 import { getAdminFromRequest } from "@/lib/auth";
 
 export async function GET(req) {
@@ -18,8 +19,7 @@ export async function GET(req) {
         name: true,
         email: true,
         role: true,
-        marketId: true,
-        market: { select: { code: true, name: true } },
+        markets: MARKET_SUMMARY_SELECT,
       },
     });
 
