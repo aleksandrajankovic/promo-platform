@@ -57,6 +57,15 @@ export function getAllowedCategories(theme) {
 
 export const KNOCKOUT_CATEGORIES = new Set(["QUARTER_FINAL", "SEMI_FINAL", "FINAL"]);
 
+// WeeklyPlan nema knockoutPhase kolonu (samo SpecialPromotion je ima) — bez nje
+// se knockout prsten/bedž na kalendaru (getKnockoutRingClass/BadgeLabel, koji
+// se pozivaju sa knockoutPhase-om, ne sa category-jem) nikad ne prikazuje za
+// nedeljne promocije, pa je category=QUARTER_FINAL/SEMI_FINAL/FINAL tamo
+// vizuelno identičan category=ALL — nema smisla dozvoliti taj izbor uopšte.
+export function getAllowedWeeklyCategories(theme) {
+  return getAllowedCategories(theme).filter((c) => !KNOCKOUT_CATEGORIES.has(c));
+}
+
 export function getKnockoutRingClass(category) {
   switch (category) {
     case "QUARTER_FINAL": return "knockout-ring-bronze";
