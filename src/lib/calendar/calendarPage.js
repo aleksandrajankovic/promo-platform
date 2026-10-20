@@ -307,6 +307,14 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   // pozicija kalendara — per-month override > global default
   const pos = monthBg.position || calendarSettings?.calendarPosition || "left";
 
+  // dodatni razmak iznad kalendara (vh) — da kalendar ne prekriva naslov na pozadini
+  const topOffset = monthBg.topOffset || 0;
+  const topOffsetMobile = monthBg.topOffsetMobile || 0;
+
+  // skraćen mesec — prikazuju se samo dani od-do (npr. kampanja 15–31)
+  const dayFrom = monthBg.dayFrom || null;
+  const dayTo = monthBg.dayTo || null;
+
   // naslov kalendara — per-month override > global calendarTitle > hardcoded fallback
   const monthTitle = monthBg.titleSr;
   const globalTitles = calendarSettings?.calendarTitle || {};
@@ -339,6 +347,10 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     bgImageUrlMobile,
     pos,
     calendarTitle,
+    topOffset,
+    topOffsetMobile,
+    dayFrom,
+    dayTo,
     theme,
     isMonthInactive,
     prevMonth,

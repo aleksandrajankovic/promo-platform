@@ -94,7 +94,8 @@ export default function BrandingLayoutTab({
   const configuredKeys = useMemo(
     () => Object.keys(monthBackgrounds).filter((k) => {
       const v = monthBackgrounds[k];
-      return v?.desktop || v?.mobile || v?.position || v?.titleSr || v?.inactive || v?.theme;
+      return v?.desktop || v?.mobile || v?.position || v?.titleSr || v?.inactive || v?.theme
+        || v?.topOffset || v?.topOffsetMobile || v?.dayFrom || v?.dayTo;
     }),
     [monthBackgrounds]
   );
@@ -133,7 +134,7 @@ export default function BrandingLayoutTab({
           )}
         </div>
         <p className="text-xs text-neutral-500 mt-2">
-          Every "Override for {monthLabel}" section below (Title, Theme, Position, Background) and the deactivate switch apply to this month. Change the month here, it updates everywhere at once.
+          Every "Override for {monthLabel}" section below (Title, Theme, Position, Visible days & spacing, Background) and the deactivate switch apply to this month. Change the month here, it updates everywhere at once.
         </p>
       </div>
 
@@ -346,6 +347,39 @@ export default function BrandingLayoutTab({
         </div>
       </AdminTableCard>
 
+      {/* ── VISIBLE DAYS + SPACE ABOVE (per month) ── */}
+      <AdminTableCard title={`Visible days & spacing — ${monthLabel}`}>
+        <div className="p-4 space-y-5">
+          <div>
+            <p className="text-sm font-medium text-neutral-800 mb-1">Visible days</p>
+            <p className="text-xs text-neutral-400 mb-2">
+              Show only part of the month, e.g. a campaign from 15 to 31. Leave empty to show the whole month.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-neutral-500">
+              <span>From</span>
+              <NumberInput min={1} max={31} placeholder="1" value={currentBg.dayFrom} onChange={(v) => setField("dayFrom", v)} />
+              <span>to</span>
+              <NumberInput min={1} max={31} placeholder="31" value={currentBg.dayTo} onChange={(v) => setField("dayTo", v)} />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-neutral-100">
+            <p className="text-sm font-medium text-neutral-800 mb-1">Space above calendar</p>
+            <p className="text-xs text-neutral-400 mb-2">
+              Pushes the calendar down, e.g. when the background has its own title. % of screen height, 0–40.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-neutral-500">
+              <span>Desktop</span>
+              <NumberInput min={0} max={40} placeholder="0" value={currentBg.topOffset} onChange={(v) => setField("topOffset", v)} />
+              <span>%</span>
+              <span className="ml-3">Mobile</span>
+              <NumberInput min={0} max={40} placeholder="0" value={currentBg.topOffsetMobile} onChange={(v) => setField("topOffsetMobile", v)} />
+              <span>%</span>
+            </div>
+          </div>
+        </div>
+      </AdminTableCard>
+
       {/* ── BACKGROUND ── */}
       <AdminTableCard title="Background Image">
         <div className="p-4 space-y-6">
@@ -474,6 +508,9 @@ export default function BrandingLayoutTab({
                   bg.theme === "default-horizontal" && "↔ horizontal",
                   bg.titleSr && "title",
                   bg.position && `position: ${bg.position}`,
+                  (bg.dayFrom || bg.dayTo) && `days: ${bg.dayFrom || 1}–${bg.dayTo || 31}`,
+                  bg.topOffset && `space above: ${bg.topOffset}%`,
+                  bg.topOffsetMobile && `space above (mobile): ${bg.topOffsetMobile}%`,
                   bg.desktop && "desktop bg",
                   bg.mobile && "mobile bg",
                 ].filter(Boolean).join(", ");
@@ -503,5 +540,19 @@ export default function BrandingLayoutTab({
         </AdminTableCard>
       )}
     </div>
+  );
+}
+
+function NumberInput({ value, onChange, min, max, placeholder }) {
+  return (
+    <input
+      type="number"
+      min={min}
+      max={max}
+      className="w-20 border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+      placeholder={placeholder}
+    />
   );
 }

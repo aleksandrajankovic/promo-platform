@@ -47,8 +47,11 @@ export function useCalendarMobileDays() {
     try {
       const payload = JSON.parse(dataEl.textContent || "{}");
       const allDays = Array.isArray(payload.days) ? payload.days : [];
-      const currentDays = allDays.filter((d) => d && typeof d.day === "number");
-      const ghostDays = buildGhostDays(payload.year, payload.month);
+      const from = payload.visibleFrom || 1;
+      const to = payload.visibleTo || 31;
+      const currentDays = allDays.filter((d) => d && typeof d.day === "number" && d.day >= from && d.day <= to);
+      // skraćen mesec počinje svojim prvim danom — bez dana prethodnog meseca
+      const ghostDays = payload.isRange ? [] : buildGhostDays(payload.year, payload.month);
       const combinedDays = [...ghostDays, ...currentDays];
 
       let todayIndex = combinedDays.findIndex((d) => d.isToday);

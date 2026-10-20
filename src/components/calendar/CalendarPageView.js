@@ -31,6 +31,10 @@ export default function CalendarPageView({
   bgImageUrlMobile,
   pos,
   calendarTitle,
+  topOffset,
+  topOffsetMobile,
+  dayFrom,
+  dayTo,
   theme,
   isMonthInactive,
   prevMonth,
@@ -162,7 +166,17 @@ export default function CalendarPageView({
               </div>
             )}
 
-            <div className={theme === "football" ? "mt-2 md:mt-1" : "mt-6"}>
+            {/* dodatni razmak iznad kalendara (podešava se po mesecu) — npr. kad
+                pozadina ima svoj naslov; posebno za desktop i mobilni */}
+            <div
+              className={`${theme === "football" ? "mt-2 md:mt-1" : "mt-6"}${
+                topOffset ? " md:[padding-top:var(--cal-top-offset)]" : ""
+              }${topOffsetMobile ? " max-md:[padding-top:var(--cal-top-offset-m)]" : ""}`}
+              style={{
+                ...(topOffset && { "--cal-top-offset": `${topOffset}vh` }),
+                ...(topOffsetMobile && { "--cal-top-offset-m": `${topOffsetMobile}svh` }),
+              }}
+            >
               <CalendarGrid
                 year={year}
                 month={month}
@@ -178,6 +192,8 @@ export default function CalendarPageView({
                 timezone={timezone}
                 scratchCoverUrl={scratchCoverUrl}
                 scratchCursorUrl={scratchCursorUrl}
+                dayFrom={dayFrom}
+                dayTo={dayTo}
               />
             </div>
 

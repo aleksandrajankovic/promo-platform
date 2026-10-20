@@ -119,8 +119,16 @@ export async function PUT(req) {
           const titleSr  = (val.titleSr  || "").trim() || null;
           const inactive = val.inactive === true ? true : null;
           const theme    = VALID_THEMES.includes(val.theme) ? val.theme : null;
-          if (desktop || mobile || position || titleSr || inactive || theme)
-            out[key] = { desktop, mobile, position, titleSr, inactive, theme };
+          // dodatni razmak iznad kalendara, u % visine ekrana (0–40), posebno desktop/mobilni
+          const pct = (v) => { const n = Math.round(Number(v)); return n > 0 ? Math.min(n, 40) : null; };
+          const topOffset       = pct(val.topOffset);
+          const topOffsetMobile = pct(val.topOffsetMobile);
+          // skraćen mesec: prikazuju se samo dani od-do (1–31)
+          const day = (v) => { const n = Math.round(Number(v)); return n >= 1 && n <= 31 ? n : null; };
+          const dayFrom = day(val.dayFrom);
+          const dayTo   = day(val.dayTo);
+          if (desktop || mobile || position || titleSr || inactive || theme || topOffset || topOffsetMobile || dayFrom || dayTo)
+            out[key] = { desktop, mobile, position, titleSr, inactive, theme, topOffset, topOffsetMobile, dayFrom, dayTo };
         }
       }
       cleaned = Object.keys(out).length ? out : null;

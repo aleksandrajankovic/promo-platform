@@ -23,8 +23,10 @@ export default function CalendarGrid({
   timezone = "Europe/Belgrade",
   scratchCoverUrl = "/img/scratchCard.png",
   scratchCursorUrl = "/img/coin.png",
+  dayFrom = null,
+  dayTo = null,
 }) {
-  const { cells, daysPayload } = buildCalendarData({
+  const { cells, daysPayload, dayFrom: visibleFrom, dayTo: visibleTo, isRange } = buildCalendarData({
     year,
     month,
     weekly,
@@ -33,6 +35,8 @@ export default function CalendarGrid({
     lang,
     today: today ?? new Date(),
     timezone,
+    dayFrom,
+    dayTo,
   });
 
   const isFootball = theme === "football";
@@ -60,12 +64,15 @@ export default function CalendarGrid({
           <div
             className={`grid grid-cols-7 gap-1.5 md:gap-2 ${
               isFootball
-                ? "auto-rows-[70px] md:auto-rows-[78px] lg:auto-rows-[96px] xl:auto-rows-[104px]"
+                ? // redovi se smanjuju na nižim ekranima (max ~10.5vh) da ceo kalendar stane
+                  "auto-rows-[70px] md:auto-rows-[min(78px,10.5vh)] lg:auto-rows-[min(96px,10.5vh)] xl:auto-rows-[min(104px,10.5vh)]"
                 : "auto-rows-[52px] md:auto-rows-[70px] lg:auto-rows-[95px]"
             }`}
             data-cal-grid
           >
             {cells.map((cell) => {
+              if (cell.type === "blank") return <div key={cell.key} aria-hidden="true" />;
+
               if (cell.type === "prev" || cell.type === "next") {
                 return isFootball
                   ? <CalendarGhostBall key={cell.key} cell={cell} />
@@ -196,6 +203,10 @@ export default function CalendarGrid({
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             days: daysPayload,
+            // mobilni prikazi prikazuju samo dane iz opsega (skraćen mesec)
+            visibleFrom,
+            visibleTo,
+            isRange,
             adminPreview,
             year,
             month,

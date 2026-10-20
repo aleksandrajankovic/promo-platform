@@ -40,7 +40,9 @@ export default function CalendarMobileFootball({
     try {
       const payload = JSON.parse(dataEl.textContent || "{}");
       const allDays = Array.isArray(payload.days) ? payload.days : [];
-      const currentDays = allDays.filter((d) => d && typeof d.day === "number");
+      const from = payload.visibleFrom || 1;
+      const to = payload.visibleTo || 31;
+      const currentDays = allDays.filter((d) => d && typeof d.day === "number" && d.day >= from && d.day <= to);
 
       let todayIndex = currentDays.findIndex((d) => d.isToday);
       if (todayIndex === -1) todayIndex = currentDays.findIndex((d) => d.hasPromo);
