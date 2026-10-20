@@ -4,21 +4,13 @@ export const runtime = "nodejs";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
 import { signToken, makeSessionCookie, makeDeleteCookie, decodeTokenUnsafe, revokeToken } from "@/lib/auth";
-import { checkRateLimit, recordFailedAttempt, clearAttempts } from "@/lib/rateLimit";
+import { checkRateLimit, recordFailedAttempt, clearAttempts, getClientIp } from "@/lib/rateLimit";
 
 // Dummy hash — sprečava timing attack (napadač ne može da zna da li email postoji)
 const DUMMY_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
-function getIp(req) {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown"
-  );
-}
-
 export async function POST(req) {
-  const ip = getIp(req);
+  const ip = getClientIp(req);
   const limit = checkRateLimit(ip);
 
   if (!limit.allowed) {
@@ -52,7 +44,6 @@ export async function POST(req) {
     const token = await signToken({
       adminId: admin.id,
       role: admin.role,
-      marketId: admin.marketId,
     });
 
     return new Response(null, {
