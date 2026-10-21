@@ -37,7 +37,7 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
   const {
     form, setField, setTranslationField,
     market, activeLang, setActiveLang, currentT, langSuffix,
-    validateActiveTranslation, contentPayload, themeFor,
+    validateActiveTranslation, contentPayload, themeFor, dirty,
   } = usePromoEditorForm(seed, initial);
   const [saving, setSaving] = useState(false);
 
@@ -81,6 +81,7 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
       onCancel={onCancel}
       onSave={save}
       saving={saving}
+      dirty={dirty}
     >
       <LanguageTabs market={market} activeLang={activeLang} onChange={setActiveLang} />
 

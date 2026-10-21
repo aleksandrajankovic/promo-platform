@@ -107,12 +107,20 @@ export function usePromoEditorForm(seed, initial) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // dirty = korisnik je nešto promenio (automatsko prebacivanje starih redova
+  // u prevode pri otvaranju ide preko setForm direktno i ne računa se)
+  const [dirty, setDirty] = useState(false);
+  function updateForm(update) {
+    setDirty(true);
+    setForm(update);
+  }
+
   function setField(key, value) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    updateForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function setTranslationField(lang, key, value) {
-    setForm((prev) => {
+    updateForm((prev) => {
       const prevTranslations = prev.translations || {};
       return {
         ...prev,
@@ -168,7 +176,7 @@ export function usePromoEditorForm(seed, initial) {
   const langSuffix = market?.locales?.length > 1 ? ` (${activeLang.toUpperCase()})` : "";
 
   return {
-    form, setForm, setField, setTranslationField,
+    form, setForm: updateForm, setField, setTranslationField, dirty,
     market, activeLang, setActiveLang, currentT, langSuffix,
     validateActiveTranslation, contentPayload, themeFor,
   };
@@ -182,7 +190,33 @@ export function openCalendarPreview(year, month) {
 
 // Editor kao panel sa desne strane preko liste — nema skrolovanja do forme
 // ispod tabele, a zaglavlje (status, Save/Cancel) ostaje zalepljeno na vrhu.
-export function EditorShell({ heading, active, onToggleActive, onPreview, onCancel, onSave, saving, children }) {
+export function EditorShell({ heading, active, onToggleActive, onPreview, onCancel, onSave, saving, dirty = false, children }) {
+  // zatvaranje sa nesnimljenim izmenama traži potvrdu (Cancel, Esc)
+  function requestClose() {
+    if (dirty && !window.confirm("You have unsaved changes. Close the editor and discard them?")) return;
+    onCancel();
+  }
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      // Esc zatvara samo editor, ne kad je preko njega otvoren drugi prozor (galerija)
+      if (e.key === "Escape" && document.querySelectorAll('[aria-modal="true"]').length === 1) requestClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
+
+  // zatvaranje taba, osvežavanje ili odlazak na drugu adresu — upozorenje browsera
+  useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
   // zaključaj skrol stranice ispod panela dok je otvoren
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -210,7 +244,7 @@ export function EditorShell({ heading, active, onToggleActive, onPreview, onCanc
             </button>
             <button
               type="button"
-              onClick={onCancel}
+              onClick={requestClose}
               className="px-[18px] py-[7px] rounded border border-neutral-300 bg-white text-neutral-700 text-xs font-condensed hover:bg-neutral-50"
             >
               Cancel
@@ -221,7 +255,7 @@ export function EditorShell({ heading, active, onToggleActive, onPreview, onCanc
               disabled={saving}
               className="px-[18px] py-[7px] rounded bg-[#17BB00] text-white text-xs font-condensed hover:brightness-110 disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Saving..." : dirty ? "Save •" : "Save"}
             </button>
           </div>
         </div>

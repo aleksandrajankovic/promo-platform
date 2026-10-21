@@ -3,6 +3,7 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { useWeeklyPlan } from "./useWeeklyPlan";
 import WeeklyEditor from "./components/WeeklyEditor";
 import AdminTableCard from "../components/AdminTableCard";
@@ -46,7 +47,25 @@ export default function WeeklyPlanAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp]);
 
-  const { rows, loading, error, upsert, remove, bulkToggle } = useWeeklyPlan(year, month);
+  const { rows, loading, error, upsert, remove, bulkToggle, copyFromPrevious } = useWeeklyPlan(year, month);
+  const [copying, setCopying] = useState(false);
+  const prevMonthName = new Date(year, month - 1, 1).toLocaleString("en", { month: "long", year: "numeric" });
+  const monthName = new Date(year, month, 1).toLocaleString("en", { month: "long", year: "numeric" });
+
+  async function handleCopy() {
+    const existing = rows.length;
+    const note = existing ? ` The ${existing} day(s) already filled in ${monthName} stay unchanged.` : "";
+    if (!window.confirm(`Copy weekly promotions from ${prevMonthName} into ${monthName}?\n\nCopies are added as INACTIVE drafts — review them and activate when ready.${note}`)) return;
+    setCopying(true);
+    try {
+      const count = await copyFromPrevious();
+      toast.success(count ? `Copied ${count} day(s) as inactive drafts.` : "Nothing to copy — all days are already filled.");
+    } catch (e) {
+      toast.error(e.message || "Copy failed.");
+    } finally {
+      setCopying(false);
+    }
+  }
   const [bulkLoading, setBulkLoading] = useState(false);
   const [editing, setEditing] = useState(null); // weekday 0..6
 
@@ -111,7 +130,20 @@ export default function WeeklyPlanAdmin() {
             Review and edit weekly promotions for the selected month{" "}
           </p>
         </div>
-        <PreviewCalendarButton year={year} month={month} />
+        <div className="flex items-center gap-2">
+          {!loading && rows.length < 7 && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              disabled={copying}
+              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
+              title={`Copy ${prevMonthName} into ${monthName} as inactive drafts`}
+            >
+              {copying ? "Copying…" : `Copy from ${prevMonthName}`}
+            </button>
+          )}
+          <PreviewCalendarButton year={year} month={month} />
+        </div>
       </div>
 
       <AdminTableCard

@@ -68,7 +68,7 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
   const {
     form, setForm, setField, setTranslationField,
     market, activeLang, setActiveLang, currentT, langSuffix,
-    validateActiveTranslation, contentPayload, themeFor,
+    validateActiveTranslation, contentPayload, themeFor, dirty,
   } = usePromoEditorForm(seed, initial);
   const [saving, setSaving] = useState(false);
 
@@ -158,6 +158,7 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       onCancel={onCancel}
       onSave={save}
       saving={saving}
+      dirty={dirty}
     >
       <LanguageTabs market={market} activeLang={activeLang} onChange={setActiveLang} />
 

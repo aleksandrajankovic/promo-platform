@@ -89,5 +89,18 @@ export function useWeeklyPlan(year, month) {
     }
   }
 
-  return { rows, loading, error, upsert, remove, bulkToggle };
+  // Kopira prethodni mesec u ovaj (neaktivno); vraća broj kopiranih dana.
+  async function copyFromPrevious() {
+    const res = await fetch("/api/weekly-plan/copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ year, month }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const { created } = await res.json();
+    setRows((prev) => [...prev, ...created].sort((a, b) => a.weekday - b.weekday));
+    return created.length;
+  }
+
+  return { rows, loading, error, upsert, remove, bulkToggle, copyFromPrevious };
 }
