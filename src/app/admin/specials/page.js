@@ -7,6 +7,7 @@ import SpecialEditor from "./components/SpecialEditor";
 import AdminTableCard from "../components/AdminTableCard";
 import { confirmDeleteToast } from "../components/ConfirmDeleteToast";
 import MonthNavigator from "../components/MonthNavigator";
+import { LastEditedBy } from "../components/PromoHistory";
 
 export default function SpecialsAdminPage() {
   const [rows, setRows] = useState([]);
@@ -246,6 +247,7 @@ export default function SpecialsAdminPage() {
                     {/* Title */}
                     <div className="font-semibold text-sm text-[var(--black-white-90)]">
                       {r.title || "—"}
+                      <LastEditedBy row={r} />
                     </div>
 
                     {/* Category – NOVO */}

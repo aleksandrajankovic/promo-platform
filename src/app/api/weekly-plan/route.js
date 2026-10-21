@@ -8,6 +8,7 @@ import { sanitizeRichHtml, sanitizeTranslations } from "@/lib/sanitize";
 import { sanitizeLink } from "@/lib/validate";
 import { getAllowedWeeklyCategories } from "@/lib/calendar/promoCategoryStyles";
 import { resolveMonthTheme } from "@/lib/calendar/monthTheme";
+import { AUTHOR_INCLUDE, auditEntry, diffPromo, updateAction, weeklyLabel } from "@/lib/audit";
 
 // GET /api/weekly-plan?year=YYYY&month=MM — u praksi je konzumuje samo admin UI
 // (autentifikovan), zato ide kroz isti marketScope kao ostale admin rute.
@@ -26,6 +27,7 @@ export async function GET(req) {
   const rows = await prisma.weeklyPlan.findMany({
     where: { marketId: market.id, year, month },
     orderBy: { weekday: "asc" },
+    include: AUTHOR_INCLUDE,
   });
 
   return Response.json(rows);
@@ -33,7 +35,7 @@ export async function GET(req) {
 
 // PATCH /api/weekly-plan — bulk activate/deactivate svih dana u mesecu
 export async function PATCH(req) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  const { session, market, errorResponse } = await requireAdminMarketOrResponse(req);
   if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
@@ -45,17 +47,32 @@ export async function PATCH(req) {
     return new Response("bad payload", { status: 400 });
   }
 
-  const { count } = await prisma.weeklyPlan.updateMany({
-    where: { marketId: market.id, year, month },
-    data: { active },
+  // samo dani kojima se status stvarno menja — po jedan zapis u istoriji
+  const rows = await prisma.weeklyPlan.findMany({
+    where: { marketId: market.id, year, month, active: !active },
+    select: { id: true, year: true, month: true, weekday: true, title: true },
   });
+  await prisma.$transaction([
+    prisma.weeklyPlan.updateMany({
+      where: { id: { in: rows.map((r) => r.id) } },
+      data: { active, updatedById: session.adminId },
+    }),
+    prisma.promoAuditLog.createMany({
+      data: rows.map((r) =>
+        auditEntry({
+          session, marketId: market.id, entity: "weekly", entityId: r.id,
+          action: active ? "activate" : "deactivate", label: weeklyLabel(r),
+        })
+      ),
+    }),
+  ]);
 
   revalidateTag("calendar", { expire: 0 });
-  return Response.json({ updated: count });
+  return Response.json({ updated: rows.length });
 }
 
 export async function PUT(req) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  const { session, market, errorResponse } = await requireAdminMarketOrResponse(req);
   if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
@@ -105,10 +122,39 @@ export async function PUT(req) {
     category: category || "ALL",
   };
 
-  const row = await prisma.weeklyPlan.upsert({
-    where: { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } },
-    create: data,
-    update: data,
+  const where = { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } };
+  const existing = await prisma.weeklyPlan.findUnique({ where });
+
+  const row = await prisma.$transaction(async (tx) => {
+    if (!existing) {
+      const created = await tx.weeklyPlan.create({
+        data: { ...data, createdById: session.adminId, updatedById: session.adminId },
+        include: AUTHOR_INCLUDE,
+      });
+      await tx.promoAuditLog.create({
+        data: auditEntry({
+          session, marketId: market.id, entity: "weekly", entityId: created.id,
+          action: "create", label: weeklyLabel(created),
+        }),
+      });
+      return created;
+    }
+
+    const changes = diffPromo(existing, data);
+    const updated = await tx.weeklyPlan.update({
+      where,
+      data: { ...data, updatedById: session.adminId },
+      include: AUTHOR_INCLUDE,
+    });
+    if (Object.keys(changes).length) {
+      await tx.promoAuditLog.create({
+        data: auditEntry({
+          session, marketId: market.id, entity: "weekly", entityId: updated.id,
+          action: updateAction(changes), label: weeklyLabel(updated), changes,
+        }),
+      });
+    }
+    return updated;
   });
 
   revalidateTag("calendar", { expire: 0 });
@@ -116,7 +162,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  const { session, market, errorResponse } = await requireAdminMarketOrResponse(req);
   if (errorResponse) return errorResponse;
 
   const body = await req.json().catch(() => ({}));
@@ -131,10 +177,20 @@ export async function DELETE(req) {
     return new Response("Bad payload", { status: 400 });
   }
 
+  const where = { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } };
+  const existing = await prisma.weeklyPlan.findUnique({ where });
+  if (!existing) return new Response(null, { status: 204 });
+
   try {
-    await prisma.weeklyPlan.delete({
-      where: { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } },
-    });
+    await prisma.$transaction([
+      prisma.weeklyPlan.delete({ where }),
+      prisma.promoAuditLog.create({
+        data: auditEntry({
+          session, marketId: market.id, entity: "weekly", entityId: existing.id,
+          action: "delete", label: weeklyLabel(existing),
+        }),
+      }),
+    ]);
   } catch (err) {
     // P2025 = već ne postoji — i dalje vraćamo 204. Svaka druga greška mora
     // da se propagira, ne da se tiho prikaže adminu kao uspešno brisanje.

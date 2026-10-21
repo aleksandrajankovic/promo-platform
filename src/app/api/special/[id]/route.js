@@ -5,6 +5,7 @@ import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
 import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 import { prepareSpecialData } from "@/lib/calendar/specialPayload";
+import { AUTHOR_INCLUDE, auditEntry, diffPromo, specialLabel, updateAction } from "@/lib/audit";
 
 // Postojeći red mora pripadati market-u iz sesije — u suprotnom admin jednog
 // tržišta mogao bi da menja/briše promocije drugog tržišta pogađanjem id-a.
@@ -16,7 +17,7 @@ async function findOwnedOrNull(specialId, marketId) {
 // (Ranije je ovo bio upsert sa eksplicitnim id-jem, što bi mimoišlo Postgres
 // sekvencu i kasnije oborilo POST na duplom primarnom ključu.)
 export async function PUT(req, { params }) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  const { session, market, errorResponse } = await requireAdminMarketOrResponse(req);
   if (errorResponse) return errorResponse;
 
   const { id } = await params;
@@ -30,9 +31,22 @@ export async function PUT(req, { params }) {
   const { data, error } = await prepareSpecialData(body, market);
   if (error) return error;
 
-  const row = await prisma.specialPromotion.update({
-    where: { id: specialId },
-    data,
+  const changes = diffPromo(owned, data);
+  const row = await prisma.$transaction(async (tx) => {
+    const updated = await tx.specialPromotion.update({
+      where: { id: specialId },
+      data: { ...data, updatedById: session.adminId },
+      include: AUTHOR_INCLUDE,
+    });
+    if (Object.keys(changes).length) {
+      await tx.promoAuditLog.create({
+        data: auditEntry({
+          session, marketId: market.id, entity: "special", entityId: specialId,
+          action: updateAction(changes), label: specialLabel(updated), changes,
+        }),
+      });
+    }
+    return updated;
   });
 
   revalidateTag("calendar", { expire: 0 });
@@ -40,7 +54,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function PATCH(req, { params }) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  const { session, market, errorResponse } = await requireAdminMarketOrResponse(req);
   if (errorResponse) return errorResponse;
 
   const { id } = await params;
@@ -61,20 +75,34 @@ export async function PATCH(req, { params }) {
     return new Response("bad payload", { status: 400 });
   }
 
+  const changes = diffPromo(owned, patch);
   try {
-    const row = await prisma.specialPromotion.update({
-      where: { id: specialId },
-      data: patch,
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.specialPromotion.update({
+        where: { id: specialId },
+        data: { ...patch, updatedById: session.adminId },
+        include: AUTHOR_INCLUDE,
+      });
+      if (Object.keys(changes).length) {
+        await tx.promoAuditLog.create({
+          data: auditEntry({
+            session, marketId: market.id, entity: "special", entityId: specialId,
+            action: updateAction(changes), label: specialLabel(updated), changes,
+          }),
+        });
+      }
+      return updated;
     });
     revalidateTag("calendar", { expire: 0 });
     return Response.json(row);
-  } catch {
-    return new Response("not found", { status: 404 });
+  } catch (err) {
+    if (err?.code === "P2025") return new Response("not found", { status: 404 });
+    throw err;
   }
 }
 
 export async function DELETE(req, { params }) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  const { session, market, errorResponse } = await requireAdminMarketOrResponse(req);
   if (errorResponse) return errorResponse;
 
   const { id } = await params;
@@ -85,7 +113,15 @@ export async function DELETE(req, { params }) {
   if (!owned) return new Response(null, { status: 204 });
 
   try {
-    await prisma.specialPromotion.delete({ where: { id: specialId } });
+    await prisma.$transaction([
+      prisma.specialPromotion.delete({ where: { id: specialId } }),
+      prisma.promoAuditLog.create({
+        data: auditEntry({
+          session, marketId: market.id, entity: "special", entityId: specialId,
+          action: "delete", label: specialLabel(owned),
+        }),
+      }),
+    ]);
   } catch (err) {
     // P2025 = already deleted (race with another request) — fine, treat as success.
     // Anything else is a real failure and must not be reported as a successful delete.

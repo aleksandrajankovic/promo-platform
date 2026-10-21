@@ -10,6 +10,7 @@ import { StatusToggleButton, IconButton } from "../components/AdminTableButtons"
 import { confirmDeleteToast } from "../components/ConfirmDeleteToast";
 import { WEEKDAY_LABELS } from "../components/PromoEditorFields";
 import { PreviewCalendarButton } from "../components/MonthNavigator";
+import { LastEditedBy } from "../components/PromoHistory";
 
 export default function WeeklyPlanAdmin() {
   const sp = useSearchParams();
@@ -209,6 +210,7 @@ export default function WeeklyPlanAdmin() {
                   {/* Name */}
                   <div className="font-semibold text-sm text-[var(--black-white-90)]">
                     {r?.title || "—"}
+                    <LastEditedBy row={r} />
                   </div>
 
                   {/* Link */}

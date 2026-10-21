@@ -7,6 +7,7 @@ const items = [
   { href: "/admin/specials", label: "Special Promotions" },
   { href: "/admin/weekly-plan", label: "Weekly Plan (by Month)" },
   { href: "/admin/calendar-style", label: "Calendar Styling" },
+  { href: "/admin/activity", label: "Activity" },
 ];
 
 export default function SidebarNav({ className = "", topOffsetPx = 56 }) {

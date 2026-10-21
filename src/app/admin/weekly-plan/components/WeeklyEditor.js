@@ -18,6 +18,7 @@ import {
   IconField,
   DescriptionField,
 } from "../../components/PromoEditorFields";
+import PromoHistory from "../../components/PromoHistory";
 
 // Roditelj (WeeklyPlanClient) renderuje editor sa key={weekday}, pa se pri
 // promeni dana komponenta remount-uje i seed se ponovo primenjuje.
@@ -135,6 +136,12 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
       <Section title="Effects">
         <CardEffectToggles form={form} setField={setField} />
       </Section>
+
+      {form.id && (
+        <Section title="History">
+          <PromoHistory entity="weekly" entityId={form.id} />
+        </Section>
+      )}
     </EditorShell>
   );
 }

@@ -16,6 +16,7 @@ import {
   IconField,
   DescriptionField,
 } from "../../components/PromoEditorFields";
+import PromoHistory from "../../components/PromoHistory";
 
 const KNOCKOUT_OPTIONS = [
   { value: null, label: "None" },
@@ -240,6 +241,12 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       <Section title="Effects">
         <CardEffectToggles form={form} setField={setField} />
       </Section>
+
+      {form.id && (
+        <Section title="History">
+          <PromoHistory entity="special" entityId={form.id} />
+        </Section>
+      )}
     </EditorShell>
   );
 }
