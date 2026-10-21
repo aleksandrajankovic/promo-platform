@@ -11,6 +11,8 @@ export const ADMIN_USER_SELECT = {
   email: true,
   role: true,
   markets: MARKET_SUMMARY_SELECT,
+  mustChangePassword: true,
+  totpEnabled: true,
   createdAt: true,
   updatedAt: true,
 };

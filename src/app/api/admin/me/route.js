@@ -1,33 +1,24 @@
 // src/app/api/admin/me/route.js
 export const runtime = "nodejs";
 
-import prisma from "@/lib/db";
-import { MARKET_SUMMARY_SELECT } from "@/lib/adminUserSelect";
-import { getAdminFromRequest } from "@/lib/auth";
+import { requireAccountSessionOrResponse } from "@/lib/marketScope";
 
+// Ko je ulogovan — dozvoljeno i nalogu koji tek treba da promeni privremenu
+// lozinku (UI ga po mustChangePassword šalje na /admin/account).
 export async function GET(req) {
   try {
-    const session = await getAdminFromRequest(req);
-    if (!session) {
-      return new Response("Unauthorized", { status: 401 });
-    }
+    const { admin, errorResponse } = await requireAccountSessionOrResponse(req);
+    if (errorResponse) return errorResponse;
 
-    const admin = await prisma.adminUser.findUnique({
-      where: { id: session.adminId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        markets: MARKET_SUMMARY_SELECT,
-      },
+    return Response.json({
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      markets: admin.markets.map(({ id, code, name }) => ({ id, code, name })),
+      mustChangePassword: admin.mustChangePassword,
+      totpEnabled: admin.totpEnabled,
     });
-
-    if (!admin) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    return Response.json(admin);
   } catch (err) {
     console.error("GET /api/admin/me error:", err);
     return new Response("Error", { status: 500 });

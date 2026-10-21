@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/db";
-import { signToken, makeSessionCookie, makeDeleteCookie, decodeTokenUnsafe, revokeToken } from "@/lib/auth";
+import { sessionCookieFor, signLoginChallenge, makeDeleteCookie, decodeTokenUnsafe, revokeToken } from "@/lib/auth";
 import { checkRateLimit, recordFailedAttempt, clearAttempts, getClientIp } from "@/lib/rateLimit";
 
 // Dummy hash — sprečava timing attack (napadač ne može da zna da li email postoji)
@@ -41,15 +41,21 @@ export async function POST(req) {
     }
 
     clearAttempts(ip);
-    const token = await signToken({
-      adminId: admin.id,
-      role: admin.role,
-    });
 
-    return new Response(null, {
-      status: 204,
-      headers: { "Set-Cookie": makeSessionCookie(token) },
-    });
+    // Super admin mora da ima 2FA; ostali je imaju ako su je uključili. Tada
+    // lozinka nije dovoljna — klijent dobija "izazov" i sledeći korak:
+    // "enroll" (prvo podešavanje, QR kod) ili "totp" (unos koda).
+    if (admin.role === "SUPER_ADMIN" || admin.totpEnabled) {
+      return Response.json({
+        step: admin.totpEnabled ? "totp" : "enroll",
+        challenge: await signLoginChallenge(admin.id),
+      });
+    }
+
+    return Response.json(
+      { step: "done", mustChangePassword: admin.mustChangePassword },
+      { headers: { "Set-Cookie": await sessionCookieFor(admin) } }
+    );
   } catch (e) {
     console.error("POST /api/auth error:", e);
     return new Response("Error", { status: 500 });

@@ -2,12 +2,16 @@
 export const runtime = "nodejs";
 
 import prisma from "@/lib/db";
-import { getAdminFromRequest } from "@/lib/auth";
+import { loadSessionAdmin, MarketScopeError } from "@/lib/marketScope";
 
 // GET /api/admin/markets — lista svih tržišta (za market switcher / user management dropdown)
 export async function GET(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) return new Response("Unauthorized", { status: 401 });
+  try {
+    await loadSessionAdmin(req);
+  } catch (err) {
+    if (err instanceof MarketScopeError) return new Response(err.message, { status: err.status });
+    throw err;
+  }
 
   const markets = await prisma.market.findMany({
     orderBy: { code: "asc" },

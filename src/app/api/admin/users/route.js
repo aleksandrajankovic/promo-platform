@@ -58,7 +58,11 @@ export async function POST(req) {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const newAdmin = await prisma.adminUser.create({
-      data: { name, email, passwordHash, role, markets: { connect: marketIds.map((id) => ({ id })) } },
+      // lozinku je izabrao super admin — korisnik je menja pri prvoj prijavi
+      data: {
+        name, email, passwordHash, role, mustChangePassword: true,
+        markets: { connect: marketIds.map((id) => ({ id })) },
+      },
       select: ADMIN_USER_SELECT,
     });
 

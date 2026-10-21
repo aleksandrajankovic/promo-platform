@@ -38,6 +38,7 @@ model Market {
   specialPromotions SpecialPromotion[]
   weeklyPlans       WeeklyPlan[]
   admins            AdminUser[]
+  auditLogs         PromoAuditLog[]
 }
 
 model CalendarSettings {
@@ -63,54 +64,65 @@ model CalendarSettings {
 }
 
 model SpecialPromotion {
-  id            Int      @id @default(autoincrement())
+  id            Int     @id @default(autoincrement())
   marketId      String
-  market        Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  market        Market  @relation(fields: [marketId], references: [id], onDelete: Restrict)
   year          Int
   month         Int
   day           Int
   title         String
   link          String
   button        String
-  active        Boolean  @default(true)
+  active        Boolean @default(true)
   icon          String?
-  buttonColor   String   @default("green")
+  buttonColor   String  @default("green")
   rich          Json?
   richHtml      String?
-  scratch       Boolean  @default(false)
-  flipCard      Boolean  @default(false)
+  scratch       Boolean @default(false)
+  flipCard      Boolean @default(false)
   knockoutPhase String?
 
   translations Json?
   category     PromoCategory @default(ALL)
 
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  // ko je kreirao / poslednji menjao (pun log izmena je u PromoAuditLog)
+  createdById Int?
+  createdBy   AdminUser? @relation("SpecialCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById Int?
+  updatedBy   AdminUser? @relation("SpecialUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([marketId, year, month])
 }
 
 model WeeklyPlan {
-  id          Int      @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   marketId    String
-  market      Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  market      Market  @relation(fields: [marketId], references: [id], onDelete: Restrict)
   year        Int
   month       Int
   weekday     Int
   title       String
   link        String
   button      String
-  active      Boolean  @default(true)
+  active      Boolean @default(true)
   icon        String?
   rich        Json?
   richHtml    String?
-  buttonColor String   @default("green")
-  scratch     Boolean  @default(false)
-  flipCard    Boolean  @default(false)
+  buttonColor String  @default("green")
+  scratch     Boolean @default(false)
+  flipCard    Boolean @default(false)
 
   translations Json?
   category     PromoCategory @default(ALL)
 
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  createdById Int?
+  createdBy   AdminUser? @relation("WeeklyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById Int?
+  updatedBy   AdminUser? @relation("WeeklyUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@unique([marketId, year, month, weekday])
 }
@@ -126,4 +138,42 @@ model AdminUser {
   markets      Market[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Lozinka: privremena (postavio super admin) mora da se promeni pri prvoj
+  // prijavi; sesije izdate pre passwordChangedAt više ne važe.
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+
+  // 2FA (TOTP): tajna je šifrovana (src/lib/totp.js); rezervni kodovi su
+  // sha256 heševi, svaki važi jednom.
+  totpSecret        String?
+  totpEnabled       Boolean  @default(false)
+  totpRecoveryCodes String[] @default([])
+
+  createdSpecials SpecialPromotion[] @relation("SpecialCreatedBy")
+  updatedSpecials SpecialPromotion[] @relation("SpecialUpdatedBy")
+  createdWeeklies WeeklyPlan[]       @relation("WeeklyCreatedBy")
+  updatedWeeklies WeeklyPlan[]       @relation("WeeklyUpdatedBy")
+  auditLogs       PromoAuditLog[]
+}
+
+// Istorija izmena promocija — jedan red po akciji (kreiranje, izmena, (de)aktivacija,
+// brisanje). adminName je snimak imena u trenutku izmene, da log ostane čitljiv
+// i kad se nalog kasnije obriše.
+model PromoAuditLog {
+  id        Int        @id @default(autoincrement())
+  createdAt DateTime   @default(now())
+  marketId  String
+  market    Market     @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  adminId   Int?
+  admin     AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  adminName String
+  entity    String // "special" | "weekly"
+  entityId  Int?
+  action    String // "create" | "update" | "activate" | "deactivate" | "delete"
+  label     String // npr. "15.10.2026 · Naslov" — čitljivo i posle brisanja
+  changes   Json? // { polje: { from, to } }
+
+  @@index([marketId, createdAt])
+  @@index([entity, entityId])
 }

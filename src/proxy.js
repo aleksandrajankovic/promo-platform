@@ -36,7 +36,9 @@ export async function proxy(req) {
 
     try {
       const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-      await jwtVerify(token, secret);
+      const { payload } = await jwtVerify(token, secret);
+      // 2FA "izazov" token (posle lozinke, pre koda) nije sesija
+      if (payload.purpose) throw new Error("not a session token");
       return NextResponse.next();
     } catch {
       // Token nevažeći ili istekao — obriši cookie i preusmeri

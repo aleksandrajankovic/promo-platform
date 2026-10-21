@@ -2,7 +2,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 
 function getCookie(name) {
   if (typeof document === "undefined") return null;
@@ -12,6 +13,7 @@ function getCookie(name) {
 
 export default function AdminHeader() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState(null);
   const [markets, setMarkets] = useState([]);
   const [currentMarket, setCurrentMarket] = useState("");
@@ -21,9 +23,16 @@ export default function AdminHeader() {
     async function loadMe() {
       try {
         const res = await fetch("/api/admin/me", { cache: "no-store" });
+        // sesija istekla, poništena promenom lozinke ili joj fali 2FA potvrda
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
         if (!res.ok) return;
         const data = await res.json();
         setUser(data);
+        // privremena lozinka: ništa drugo ne radi dok se ne promeni
+        if (data.mustChangePassword) return;
 
         // Super admin bira između svih tržišta; obični admin između svojih
         // dodeljenih (switcher se prikazuje samo ako ih ima više od jednog).
@@ -48,7 +57,12 @@ export default function AdminHeader() {
       }
     }
     loadMe();
-  }, []);
+  }, [router]);
+
+  // privremena lozinka (posle reseta) — dozvoljena je samo stranica My account
+  useEffect(() => {
+    if (user?.mustChangePassword && pathname !== "/admin/account") router.replace("/admin/account");
+  }, [user, pathname, router]);
 
   function onMarketChange(e) {
     const code = e.target.value;
@@ -92,8 +106,7 @@ export default function AdminHeader() {
           </div>
         )}
 
-        <div className="flex items-center gap-2 px-3">
-   
+        <Link href="/admin/account" className="flex items-center gap-2 px-3 hover:bg-white/10" title="My account">
           <div className="w-5 h-5 flex items-center justify-center">
             <svg
               width="18"
@@ -111,7 +124,7 @@ export default function AdminHeader() {
           <span className="text-sm font-medium max-w-[160px] truncate">
             {displayName}
           </span>
-        </div>
+        </Link>
 
         {/* logout dugme */}
         <button

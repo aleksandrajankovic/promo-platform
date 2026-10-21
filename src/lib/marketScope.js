@@ -75,6 +75,50 @@ export async function resolveMarketByHost(hostHeader, cookieHeader) {
 // koji promo/[iso]/[slug]/page.js već koristi za svoj resolveDayEntry.
 export const resolveMarketByHostCached = cache(resolveMarketByHost);
 
+// Učitava admina iz baze za sesiju iz kolačića i proverava da ta sesija još
+// važi — jedino mesto gde se to radi, koriste ga sve admin rute:
+// - nalog postoji (role/tržišta se uvek čitaju sveže, ne iz JWT-a)
+// - sesija je izdata posle poslednje promene/reseta lozinke
+// - super admin, i svaki nalog sa uključenom 2FA, mora imati sesiju potvrđenu
+//   kodom (mfa u tokenu) — stari tokeni bez toga više ne prolaze
+// - nalog sa privremenom lozinkom sme samo na promenu lozinke
+//   (allowPasswordChange: true za /api/admin/me i /api/admin/account/*)
+export async function loadSessionAdmin(req, { allowPasswordChange = false } = {}) {
+  const session = await getAdminFromRequest(req);
+  if (!session) throw new MarketScopeError("unauthorized", 401);
+
+  const admin = await withRetry(() =>
+    prisma.adminUser.findUnique({
+      where: { id: session.adminId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        mustChangePassword: true,
+        passwordChangedAt: true,
+        totpEnabled: true,
+        markets: { orderBy: { code: "asc" } },
+      },
+    })
+  );
+  if (!admin) throw new MarketScopeError("unauthorized", 401);
+
+  // iat je u sekundama; token izdat u istoj sekundi kad i promena (nova sesija
+  // posle promene lozinke) mora da prođe, zato poređenje po sekundama
+  if (admin.passwordChangedAt && (session.iat ?? 0) < Math.floor(admin.passwordChangedAt.getTime() / 1000)) {
+    throw new MarketScopeError("session expired", 401);
+  }
+  if ((admin.role === "SUPER_ADMIN" || admin.totpEnabled) && !session.mfa) {
+    throw new MarketScopeError("two-factor authentication required", 401);
+  }
+  if (admin.mustChangePassword && !allowPasswordChange) {
+    throw new MarketScopeError("password change required", 403);
+  }
+
+  return { session: { ...session, role: admin.role, name: admin.name }, admin };
+}
+
 // Admin/API rute — vraća { session, market }. Izbor tržišta dolazi iz
 // ?market= (eksplicitno) ili admin_market kolačića (zapamćen izbor iz market
 // switcher-a), u tom redosledu prioriteta. SUPER_ADMIN može da izabere bilo
@@ -87,16 +131,7 @@ export const resolveMarketByHostCached = cache(resolveMarketByHost);
 // promene tržišta (ili ga neko unapredi u super admina), promena mora da
 // važi odmah, ne tek posle ponovnog logina.
 export async function requireAdminMarket(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) throw new MarketScopeError("unauthorized", 401);
-
-  const admin = await withRetry(() =>
-    prisma.adminUser.findUnique({
-      where: { id: session.adminId },
-      select: { role: true, markets: { orderBy: { code: "asc" } } },
-    })
-  );
-  if (!admin) throw new MarketScopeError("unauthorized", 401);
+  const { session, admin } = await loadSessionAdmin(req);
 
   const { searchParams } = new URL(req.url);
   const explicitCode = searchParams.get("market");
@@ -109,10 +144,10 @@ export async function requireAdminMarket(req) {
     if (explicitCode) {
       const market = admin.markets.find((m) => m.code === explicitCode);
       if (!market) throw new MarketScopeError("Forbidden", 403);
-      return { session: { ...session, role: admin.role }, market };
+      return { session, market };
     }
     const market = admin.markets.find((m) => m.code === cookieCode) || admin.markets[0];
-    return { session: { ...session, role: admin.role }, market };
+    return { session, market };
   }
 
   const code = explicitCode || cookieCode;
@@ -134,19 +169,22 @@ export function normalizeMarketIds(value) {
 // Rute koje nisu market-scoped (npr. upravljanje admin nalozima) ali i dalje
 // treba da provere ulogu — ista logika, sveže iz baze, ne iz JWT-a.
 export async function requireSuperAdminSession(req) {
-  const session = await getAdminFromRequest(req);
-  if (!session) throw new MarketScopeError("unauthorized", 401);
-
-  const admin = await withRetry(() =>
-    prisma.adminUser.findUnique({
-      where: { id: session.adminId },
-      select: { role: true },
-    })
-  );
-  if (!admin) throw new MarketScopeError("unauthorized", 401);
+  const { session, admin } = await loadSessionAdmin(req);
   if (admin.role !== "SUPER_ADMIN") throw new MarketScopeError("Forbidden", 403);
-
   return session;
+}
+
+// Rute za sopstveni nalog (lozinka, 2FA) — svaki ulogovan admin, uključujući
+// i onog koji tek treba da promeni privremenu lozinku.
+export async function requireAccountSessionOrResponse(req) {
+  try {
+    return await loadSessionAdmin(req, { allowPasswordChange: true });
+  } catch (err) {
+    if (err instanceof MarketScopeError) {
+      return { errorResponse: new Response(err.message, { status: err.status }) };
+    }
+    throw err;
+  }
 }
 
 // Isto kao requireAdminMarket, ali vraća Response umesto da baci grešku —

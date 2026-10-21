@@ -41,7 +41,40 @@ export async function verifyToken(token) {
     const { payload } = await jwtVerify(token, getSecret());
     // Odbij revoked tokene
     if (payload.jti && revokedTokens.has(payload.jti)) return null;
+    // "Izazov" token iz koraka sa 2FA kodom (purpose) nikad ne važi kao sesija
+    if (payload.purpose) return null;
     return payload;
+  } catch {
+    return null;
+  }
+}
+
+// Sesija posle uspešne prijave. mfa: true kad je prijava potvrđena 2FA kodom —
+// super admin (i svaki nalog sa uključenom 2FA) bez toga ne prolazi
+// loadSessionAdmin u marketScope.js.
+export async function sessionCookieFor(admin, { mfa = false } = {}) {
+  const token = await signToken({ adminId: admin.id, role: admin.role, mfa });
+  return makeSessionCookie(token);
+}
+
+// ---- 2FA korak prijave ----
+// Posle tačne lozinke, nalogu sa 2FA se ne daje sesija nego kratkotrajan
+// "izazov" (5 min) koji dokazuje samo da je lozinka bila tačna; sesija se
+// izdaje tek kad uz njega stigne ispravan kod.
+const CHALLENGE_SECONDS = 5 * 60;
+
+export async function signLoginChallenge(adminId) {
+  return new SignJWT({ adminId, purpose: "mfa" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${CHALLENGE_SECONDS}s`)
+    .sign(getSecret());
+}
+
+export async function verifyLoginChallenge(token) {
+  try {
+    const { payload } = await jwtVerify(String(token || ""), getSecret());
+    return payload.purpose === "mfa" ? payload : null;
   } catch {
     return null;
   }

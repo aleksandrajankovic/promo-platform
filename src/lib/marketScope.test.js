@@ -79,7 +79,7 @@ describe("requireAdminMarket", () => {
   });
 
   it("throws 400 when a SUPER_ADMIN specifies no market", async () => {
-    getAdminFromRequestMock.mockResolvedValue({ adminId: 2 });
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 2, mfa: true });
     findUniqueAdminUser.mockResolvedValue({ role: "SUPER_ADMIN", markets: [] });
     await expect(requireAdminMarket(makeReq())).rejects.toMatchObject(
       new MarketScopeError("super admin must specify ?market=", 400)
@@ -87,13 +87,60 @@ describe("requireAdminMarket", () => {
   });
 
   it("lets a SUPER_ADMIN pick any market via ?market=", async () => {
-    getAdminFromRequestMock.mockResolvedValue({ adminId: 2 });
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 2, mfa: true });
     findUniqueAdminUser.mockResolvedValue({ role: "SUPER_ADMIN", markets: [] });
     findUniqueMarket.mockResolvedValue({ id: "market-br", code: "br" });
 
     const { market } = await requireAdminMarket(makeReq("http://localhost/api/special?market=br"));
     expect(market.code).toBe("br");
     expect(findUniqueMarket).toHaveBeenCalledWith({ where: { code: "br" } });
+  });
+});
+
+describe("session validity (loadSessionAdmin via requireAdminMarket)", () => {
+  beforeEach(() => {
+    findUniqueMarket.mockReset();
+    findUniqueAdminUser.mockReset();
+    getAdminFromRequestMock.mockReset();
+  });
+
+  const rs = [{ id: "market-rs", code: "rs" }];
+
+  it("rejects a SUPER_ADMIN session that was not confirmed with 2FA", async () => {
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 2 });
+    findUniqueAdminUser.mockResolvedValue({ role: "SUPER_ADMIN", markets: [] });
+    await expect(requireAdminMarket(makeReq("http://localhost/api/special?market=br"))).rejects.toMatchObject(
+      new MarketScopeError("two-factor authentication required", 401)
+    );
+  });
+
+  it("requires 2FA for an ADMIN who turned it on, but not for one who didn't", async () => {
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 1 });
+    findUniqueAdminUser.mockResolvedValue({ role: "ADMIN", totpEnabled: true, markets: rs });
+    await expect(requireAdminMarket(makeReq())).rejects.toMatchObject({ status: 401 });
+
+    findUniqueAdminUser.mockResolvedValue({ role: "ADMIN", totpEnabled: false, markets: rs });
+    await expect(requireAdminMarket(makeReq())).resolves.toMatchObject({ market: { code: "rs" } });
+  });
+
+  it("rejects sessions issued before the last password change", async () => {
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 1, iat: 1_000 });
+    findUniqueAdminUser.mockResolvedValue({ role: "ADMIN", passwordChangedAt: new Date(2_000_000), markets: rs });
+    await expect(requireAdminMarket(makeReq())).rejects.toMatchObject(new MarketScopeError("session expired", 401));
+  });
+
+  it("accepts a session issued in the same second as the password change", async () => {
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 1, iat: 2_000 });
+    findUniqueAdminUser.mockResolvedValue({ role: "ADMIN", passwordChangedAt: new Date(2_000_500), markets: rs });
+    await expect(requireAdminMarket(makeReq())).resolves.toMatchObject({ market: { code: "rs" } });
+  });
+
+  it("blocks everything but the password change while a temporary password is set", async () => {
+    getAdminFromRequestMock.mockResolvedValue({ adminId: 1 });
+    findUniqueAdminUser.mockResolvedValue({ role: "ADMIN", mustChangePassword: true, markets: rs });
+    await expect(requireAdminMarket(makeReq())).rejects.toMatchObject(
+      new MarketScopeError("password change required", 403)
+    );
   });
 });
 

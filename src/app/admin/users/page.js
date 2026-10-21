@@ -19,6 +19,8 @@ export default function AdminUsersPage() {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editMarketIds, setEditMarketIds] = useState([]);
+  const [meId, setMeId] = useState(null);
+  const [tempPassword, setTempPassword] = useState(null); // { name, password }
 
   // ucitavanje liste admina i trzista
   useEffect(() => {
@@ -26,9 +28,10 @@ export default function AdminUsersPage() {
       setLoading(true);
       setError("");
       try {
-        const [adminsRes, marketsRes] = await Promise.all([
+        const [adminsRes, marketsRes, meRes] = await Promise.all([
           fetch("/api/admin/users"),
           fetch("/api/admin/markets"),
+          fetch("/api/admin/me"),
         ]);
         if (adminsRes.status === 401) {
           setError("Unauthorized – please log in again.");
@@ -44,6 +47,8 @@ export default function AdminUsersPage() {
         }
         const data = await adminsRes.json();
         setAdmins(data);
+
+        if (meRes.ok) setMeId((await meRes.json()).id);
 
         if (marketsRes.ok) {
           const marketData = await marketsRes.json();
@@ -171,6 +176,31 @@ export default function AdminUsersPage() {
     } catch (err) {
       console.error(err);
       toast.error("Failed to update admin.");
+    }
+  }
+
+  async function resetPassword(admin) {
+    if (!window.confirm(`Reset the password for ${admin.name}? They will be signed out and must set a new password at their next login.`)) return;
+    try {
+      const res = await fetch(`/api/admin/users/${admin.id}/reset-password`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      const { tempPassword: password } = await res.json();
+      setAdmins((prev) => prev.map((a) => (a.id === admin.id ? { ...a, mustChangePassword: true } : a)));
+      setTempPassword({ name: admin.name, password });
+    } catch (err) {
+      toast.error(err.message || "Failed to reset password.");
+    }
+  }
+
+  async function reset2fa(admin) {
+    if (!window.confirm(`Turn off two-factor authentication for ${admin.name}? Use this only if they lost their phone and backup codes.${admin.role === "SUPER_ADMIN" ? " They will have to set it up again at their next login." : ""}`)) return;
+    try {
+      const res = await fetch(`/api/admin/users/${admin.id}/reset-2fa`, { method: "POST" });
+      if (!res.ok) throw new Error(await res.text());
+      setAdmins((prev) => prev.map((a) => (a.id === admin.id ? { ...a, totpEnabled: false } : a)));
+      toast.success("Two-factor authentication reset.");
+    } catch (err) {
+      toast.error(err.message || "Failed to reset 2FA.");
     }
   }
 
@@ -376,6 +406,17 @@ export default function AdminUsersPage() {
                               ))}
                             </div>
                           )}
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {a.totpEnabled && (
+                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">2FA</span>
+                            )}
+                            {a.role === "SUPER_ADMIN" && !a.totpEnabled && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">2FA at next login</span>
+                            )}
+                            {a.mustChangePassword && (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">temporary password</span>
+                            )}
+                          </div>
                         </td>
 
                         <td className="py-2 px-3 text-slate-500">
@@ -411,6 +452,24 @@ export default function AdminUsersPage() {
                               >
                                 Edit
                               </button>
+                              {a.id !== meId && (
+                                <button
+                                  type="button"
+                                  onClick={() => resetPassword(a)}
+                                  className="text-xs px-3 py-1 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+                                >
+                                  Reset password
+                                </button>
+                              )}
+                              {a.id !== meId && a.totpEnabled && (
+                                <button
+                                  type="button"
+                                  onClick={() => reset2fa(a)}
+                                  className="text-xs px-3 py-1 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+                                >
+                                  Reset 2FA
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => deleteAdmin(a.id)}
@@ -430,6 +489,34 @@ export default function AdminUsersPage() {
           )}
         </section>
       </div>
+
+      {tempPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+            <h3 className="text-base font-semibold">Temporary password for {tempPassword.name}</h3>
+            <p className="mt-1 text-sm text-slate-600">
+              Send it to them through a safe channel. It is shown only now; they must change it at their next login.
+            </p>
+            <code className="my-3 block rounded bg-slate-100 px-3 py-2 text-center text-lg tracking-wider">{tempPassword.password}</code>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded border border-slate-300 py-2 text-sm hover:bg-slate-50"
+                onClick={() => navigator.clipboard?.writeText(tempPassword.password).then(() => toast.success("Copied."))}
+              >
+                Copy
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded bg-[var(--green-primary)] py-2 text-sm text-white"
+                onClick={() => setTempPassword(null)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
