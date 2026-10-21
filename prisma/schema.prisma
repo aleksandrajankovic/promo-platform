@@ -1,6 +1,7 @@
+// URL baze je u prisma.config.ts (CLI) i u src/lib/db.js (aplikacija, preko
+// driver adaptera) — Prisma 7 ga više ne čita odavde.
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {

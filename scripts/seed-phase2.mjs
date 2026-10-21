@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
+import { createPrisma } from "./prismaClient.mjs";
 
-const prisma = new PrismaClient();
+const prisma = createPrisma();
 
 const markets = [
   { code: "rs", name: "Srbija", domain: "calendar.meridianbet.rs", locales: ["sr"], defaultLocale: "sr", timezone: "Europe/Belgrade" },

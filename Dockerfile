@@ -41,6 +41,8 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+# Prisma 7: CLI (npx prisma migrate deploy u kontejneru) čita konekciju odavde
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 # Non-root — node:20-alpine već ima "node" korisnika (uid 1000) ugrađenog.
 # public/uploads mora biti upisiv od tog korisnika (tu se pišu admin upload-i,

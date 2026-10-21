@@ -18,7 +18,7 @@
 //
 // Usage: node --env-file=.env scripts/migrate-users.mjs [--apply] [marketCode ...]
 // Stare baze se čitaju iz ../calendar-next-<code>/.env (DATABASE_URL).
-import { PrismaClient } from "@prisma/client";
+import { createPrisma } from "./prismaClient.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -36,7 +36,7 @@ async function readOldDatabaseUrl(code) {
   return match[1];
 }
 
-const newPrisma = new PrismaClient();
+const newPrisma = createPrisma();
 
 async function main() {
   console.log(APPLY ? "== APPLY — upisujem u bazu ==" : "== DRY RUN — ništa se ne upisuje (dodaj --apply) ==");
@@ -51,7 +51,7 @@ async function main() {
 
   for (const code of MARKET_CODES) {
     const market = await newPrisma.market.findUniqueOrThrow({ where: { code } });
-    const oldPrisma = new PrismaClient({ datasources: { db: { url: await readOldDatabaseUrl(code) } } });
+    const oldPrisma = createPrisma(await readOldDatabaseUrl(code));
     try {
       const oldUsers = await oldPrisma.$queryRawUnsafe(
         `SELECT name, email, "passwordHash", "isSuper", "createdAt" FROM "AdminUser" ORDER BY id`

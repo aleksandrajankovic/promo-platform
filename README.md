@@ -19,7 +19,9 @@ Multi-tenant Next.js platform serving a "promo calendar" for each Meridianbet ma
    ```bash
    npx prisma migrate deploy
    ```
-   Migrations in this project are hand-written, not generated via `prisma migrate dev --create-only` against the real database — see the comment at the top of `prisma/schema.prisma`'s migration folder if you're adding a new one. Never run `prisma migrate diff --shadow-database-url` against anything but a fully disposable database.
+   Migrations in this project are hand-written, not generated via `prisma migrate dev --create-only` against the real database — see the comment at the top of `prisma/schema.prisma`'s migration folder if you're adding a new one. Never point a shadow database (`shadowDatabaseUrl` in `prisma.config.ts`) at anything but a fully disposable database.
+
+   The project is on Prisma 7: the database URL lives in `prisma.config.ts` (CLI) and `src/lib/db.js` (app, via the `@prisma/adapter-pg` driver adapter), not in `schema.prisma`. Scripts build their clients with `scripts/prismaClient.mjs`.
 4. Seed the markets and a super-admin account:
    ```bash
    node scripts/seed-phase2.mjs <your-chosen-password>

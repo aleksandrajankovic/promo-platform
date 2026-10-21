@@ -1,5 +1,6 @@
 // src/lib/db.js
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis;
 
@@ -14,7 +15,15 @@ if (!process.env.DATABASE_URL) {
 
 if (!globalForPrisma._prisma) {
   try {
-    globalForPrisma._prisma = new PrismaClient();
+    // Prisma 7: konekcija ide preko driver adaptera (node-postgres), bez
+    // posebnog Rust query engine-a. pg podrazumevano nema timeout za
+    // uspostavljanje veze (Prisma 6 je imala 5s) — bez toga bi zahtev visio
+    // kad Neon ne odgovara, umesto da withRetry dobije P1001 i pokuša ponovo.
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 5000,
+    });
+    globalForPrisma._prisma = new PrismaClient({ adapter });
   } catch (e) {
     console.error("PRISMA INIT ERROR >>>", e);
     throw e;

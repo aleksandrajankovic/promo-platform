@@ -1,3 +1,6 @@
+// prisma.config.ts — Prisma 7 više ne čita .env sam niti drži URL baze u
+// schema.prisma; CLI (migrate, generate) uzima konekciju odavde.
+import "dotenv/config";
 import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({
@@ -5,7 +8,6 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
-  engine: "classic",
   datasource: {
     url: env("DATABASE_URL"),
   },

@@ -7,7 +7,7 @@
 // WeeklyPromotion (auto-recurring, ukinuto u novoj platformi) se NE
 // migrira u šemu — samo dumpuje u JSON kao backup pre nego što se stara
 // baza ugasi.
-import { PrismaClient } from "@prisma/client";
+import { createPrisma } from "./prismaClient.mjs";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -22,8 +22,8 @@ const OLD_UPLOADS_DIR = path.resolve(import.meta.dirname, "..", OLD_PROJECT_DIR,
 const NEW_UPLOADS_DIR = path.resolve(import.meta.dirname, "../public/uploads", MARKET_CODE);
 const DUMP_DIR = path.resolve(import.meta.dirname, "../migration-dumps");
 
-const newPrisma = new PrismaClient();
-const oldPrisma = new PrismaClient({ datasources: { db: { url: OLD_DATABASE_URL } } });
+const newPrisma = createPrisma();
+const oldPrisma = createPrisma(OLD_DATABASE_URL);
 
 function rewriteUploadsDeep(value) {
   if (value == null) return value;
