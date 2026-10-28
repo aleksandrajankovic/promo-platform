@@ -61,6 +61,14 @@ Reads `DATABASE_URL`, `JWT_SECRET`, `ADMIN_HOST`, `DEV_DEFAULT_MARKET` from a `.
 
 This covers local sanity-checking the Docker build only. Production deployment (real domain wiring for `ADMIN_HOST`, pulling the real upload galleries from each market's live server, Cloudflare configuration) is handled separately, not by this compose file.
 
+### Uploaded images in production
+
+Same container path as the old per-market calendars (e.g. calendar-next-rs): **`/app/public/uploads`** — mount the server's upload storage there so images survive redeploys. Differences from the old setup:
+
+- **One folder per market** inside it: `uploads/rs/`, `uploads/tz/`, `uploads/br/`, `uploads/me/`, `uploads/ba/`, `uploads/com/`. Image URLs in the database already point there (`/uploads/<market>/<file>`, rewritten by `scripts/migrate-market.mjs`), so each old server's existing uploads go into its market's subfolder **with unchanged file names** — e.g. mount one host directory with those six subfolders, or bind each old market's existing upload folder to `/app/public/uploads/<market>`.
+- **Writable by uid 1000**: the container runs as the non-root `node` user (the old images ran as root), so the mounted folders need `chown -R 1000:1000` (or equivalent) or uploads fail with a permission error.
+- Images uploaded while the server runs are served by `src/app/uploads/[...path]/route.js` (Next only scans `public/` at startup) — same fix as calendar-next-rs, no restart needed.
+
 ## Key architecture notes
 
 - **Multi-tenant scoping**: `src/lib/marketScope.js` resolves the current market — by hostname for public pages, by session (+ explicit `?market=`/cookie for SUPER_ADMIN) for admin routes. Role/market are always re-read fresh from the database on every request, never trusted from the JWT payload.
