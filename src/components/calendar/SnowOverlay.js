@@ -1,9 +1,29 @@
 // src/components/SnowOverlay.jsx
 "use client";
 
-import { useMemo } from "react";
+const FLAKE_COUNT = 45;
 
-const FLAKE_COUNT = 45; 
+// Deterministički "nasumični" brojevi (mulberry32): isti na serveru i u
+// browseru, pa nema razlike pri hidrataciji kao sa Math.random() u renderu.
+function seeded(seed) {
+  let t = (seed + 0x6d2b79f5) | 0;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+const FLAKES = Array.from({ length: FLAKE_COUNT }, (_, i) => {
+  const r = (k) => seeded(i * 7 + k);
+  return {
+    id: i,
+    left: r(1) * 100,
+    delay: r(2) * 10,
+    duration: 12 + r(3) * 12,
+    size: 6 + r(4) * 18,
+    opacity: 0.35 + r(5) * 0.5,
+    drift: -20 + r(6) * 40,
+  };
+});
 
 function isSnowSeason() {
   const now = new Date();
@@ -15,35 +35,19 @@ function isSnowSeason() {
 export default function SnowOverlay() {
   const snow = isSnowSeason();
 
-  const flakes = useMemo(
-    () =>
-      Array.from({ length: FLAKE_COUNT }, (_, i) => {
-        const size = 6 + Math.random() * 18;
-        return {
-          id: i,
-          left: Math.random() * 100,
-          delay: Math.random() * 10,
-          duration: 12 + Math.random() * 12,
-          size,
-          opacity: 0.35 + Math.random() * 0.5,
-          drift: -20 + Math.random() * 40,
-        };
-      }),
-    []
-  );
-
   if (!snow) return null;
 
   return (
     <div
       className="
         pointer-events-none
+        motion-reduce:hidden
         fixed inset-0
         z-20            
         overflow-hidden
       "
     >
-      {flakes.map((flake) => (
+      {FLAKES.map((flake) => (
         <div
           key={flake.id}
           className="snowflake"

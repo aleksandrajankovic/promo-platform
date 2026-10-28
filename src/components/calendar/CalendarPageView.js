@@ -1,4 +1,5 @@
 // src/components/CalendarPageView.js
+import Link from "next/link";
 import CalendarGrid from "@/components/calendar/CalendarGrid";
 import CalendarEnhancer from "@/components/calendar/CalendarEnhancer";
 import MonthPagination from "@/components/calendar/MonthPagination";
@@ -134,24 +135,24 @@ export default function CalendarPageView({
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <div className="inline-flex items-center gap-2 rounded bg-amber-500/20 text-amber-200 px-3 py-1 text-sm">
                   <span>Admin preview</span>
-                  <a
+                  <Link
                     href="/admin"
                     className="underline hover:text-white transition-colors"
                     title="Go to dashboard"
                   >
                     Dashboard
-                  </a>
+                  </Link>
                   <AdminLogoutButton />
                 </div>
                 {isMonthInactive && (
                   <div className="inline-flex items-center gap-1.5 rounded bg-red-700/40 text-red-200 border border-red-500/40 px-3 py-1 text-sm">
                     <span>⚠ Month deactivated — not visible to users</span>
-                    <a
+                    <Link
                       href="/admin/calendar-style"
                       className="underline hover:text-white transition-colors"
                     >
                       Edit
-                    </a>
+                    </Link>
                   </div>
                 )}
               </div>

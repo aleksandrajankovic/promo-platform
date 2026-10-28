@@ -12,7 +12,7 @@ export default function ScratchTab({
       <AdminTableCard title="Scratch Card">
         <div className="p-4 space-y-4">
           <p className="text-sm text-neutral-500">
-            Image shown on the scratch-off layer for promotions with "Enable scratch card" turned on.
+            Image shown on the scratch-off layer for promotions with &quot;Enable scratch card&quot; turned on.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <input
@@ -32,7 +32,7 @@ export default function ScratchTab({
           <div className="text-xs text-neutral-400 space-y-0.5">
             <p>Recommended: <strong className="text-neutral-500">840×300px</strong> (landscape, ~2.8:1) for regular scratch cards.</p>
             <p>
-              If a promo also has "Flip card" enabled, this same image is shown in a <strong className="text-neutral-500">portrait 360:430</strong> crop
+              If a promo also has &quot;Flip card&quot; enabled, this same image is shown in a <strong className="text-neutral-500">portrait 360:430</strong> crop
               instead — a wide landscape image will get cropped tighter in the middle for those. Pick something with the focal point centered if you use both.
             </p>
           </div>
@@ -63,7 +63,7 @@ export default function ScratchTab({
             </button>
           </div>
           <p className="text-xs text-neutral-400">
-            Recommended: <strong className="text-neutral-500">32×32px</strong>, square, transparent PNG. The cursor's click-point is fixed to the center of the image, so keep it small and centered.
+            Recommended: <strong className="text-neutral-500">32×32px</strong>, square, transparent PNG. The cursor&apos;s click-point is fixed to the center of the image, so keep it small and centered.
           </p>
           {scratchCursorUrl && (
             <div className="mt-1 border border-neutral-200 rounded-lg overflow-hidden w-16 h-16 bg-black/40 flex items-center justify-center">

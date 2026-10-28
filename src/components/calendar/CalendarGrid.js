@@ -43,6 +43,15 @@ export default function CalendarGrid({
 
   const isFootball = theme === "football";
 
+  // Mobilni prikazi dobijaju dane već na serveru (samo polja koja koriste),
+  // da bi kartica/lopta bila u HTML-u odmah — ne tek posle JS-a (brži LCP).
+  const mobileDays = daysPayload
+    .filter((d) => d.day >= visibleFrom && d.day <= visibleTo)
+    .map(({ day, isToday, hasPromo, isLocked, isFutureForUx, category, knockoutPhase, icon }) => ({
+      day, isToday, hasPromo, isLocked, isFutureForUx, category, knockoutPhase, icon,
+    }));
+  const mobileProps = { days: mobileDays, year, month, isRange };
+
   // Kad je poznat dan koji treba otvoren pri učitavanju (/promo/[iso]/[slug]),
   // renderujemo sadržaj popup-a direktno na serveru — vidljiv bez izvršavanja JS-a.
   const openEntry = openDay != null ? daysPayload.find((d) => d.day === openDay && d.hasPromo) : null;
@@ -132,17 +141,16 @@ export default function CalendarGrid({
       <div className="md:hidden flex justify-center min-h-[calc(100vh-200px)]">
         {isFootball
           ? <CalendarMobileFootball
+              {...mobileProps}
               adminPreview={adminPreview}
               lang={lang}
               defaultLocale={defaultLocale}
-              year={year}
-              month={month}
               prevMonth={prevMonth}
               nextMonth={nextMonth}
             />
           : theme === "default-horizontal"
-            ? <CalendarMobileStack adminPreview={adminPreview} lang={lang} />
-            : <CalendarMobileVertical adminPreview={adminPreview} />
+            ? <CalendarMobileStack {...mobileProps} adminPreview={adminPreview} lang={lang} />
+            : <CalendarMobileVertical {...mobileProps} adminPreview={adminPreview} />
         }
       </div>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isValidLink, sanitizeLink } from "./validate";
+import { checkImageUrl, isValidLink, sanitizeLink } from "./validate";
 
 describe("isValidLink", () => {
   it("accepts empty values", () => {
@@ -33,5 +33,19 @@ describe("sanitizeLink", () => {
 
   it("returns empty string for an invalid link instead of the raw value", () => {
     expect(sanitizeLink("javascript:alert(1)")).toBe("");
+  });
+});
+
+describe("checkImageUrl", () => {
+  it("accepts upload paths and http(s) URLs, empty means none", () => {
+    expect(checkImageUrl(" /uploads/rs/bg.webp ")).toEqual({ url: "/uploads/rs/bg.webp" });
+    expect(checkImageUrl("https://cdn.example.com/a.png")).toEqual({ url: "https://cdn.example.com/a.png" });
+    expect(checkImageUrl("")).toEqual({ url: null });
+  });
+
+  it("rejects other protocols, protocol-relative URLs and CSS breakouts", () => {
+    for (const bad of ["javascript:alert(1)", "data:image/png;base64,AAA", "//evil.example/x.png", '/a.png") ; background:url(x', "/a b.png"]) {
+      expect(checkImageUrl(bad).error).toBeTruthy();
+    }
   });
 });

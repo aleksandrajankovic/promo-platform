@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
 const GHOST_COUNT = 4;
 
@@ -31,41 +31,21 @@ function buildGhostDays(year, month) {
   return ghostDays;
 }
 
-// Čita #calendar-data (koji CalendarGrid renderuje server-side), dodaje "ghost"
-// dane s kraja prethodnog meseca i bira početni aktivni dan (danas, ili prvi
-// dan s promocijom). Deljeno između mobilnih kartica (Stack/Vertical varijante).
-export function useCalendarMobileDays() {
-  const [days, setDays] = useState([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [year, setYear] = useState(null);
-  const [month, setMonth] = useState(null);
+// Dani meseca dolaze sa servera (CalendarGrid), pa su kartice odmah u HTML-u.
+// Dodaje "ghost" dane s kraja prethodnog meseca (osim kod skraćenog meseca) i
+// bira početni aktivni dan: danas, ili prvi dan s promocijom.
+// Deljeno između mobilnih kartica (Stack/Vertical varijante).
+export function initialDayIndex(days) {
+  let idx = days.findIndex((d) => d.isToday);
+  if (idx === -1) idx = days.findIndex((d) => d.hasPromo);
+  return idx === -1 ? 0 : idx;
+}
 
-  useEffect(() => {
-    const dataEl = document.getElementById("calendar-data");
-    if (!dataEl) return;
-
-    try {
-      const payload = JSON.parse(dataEl.textContent || "{}");
-      const allDays = Array.isArray(payload.days) ? payload.days : [];
-      const from = payload.visibleFrom || 1;
-      const to = payload.visibleTo || 31;
-      const currentDays = allDays.filter((d) => d && typeof d.day === "number" && d.day >= from && d.day <= to);
-      // skraćen mesec počinje svojim prvim danom — bez dana prethodnog meseca
-      const ghostDays = payload.isRange ? [] : buildGhostDays(payload.year, payload.month);
-      const combinedDays = [...ghostDays, ...currentDays];
-
-      let todayIndex = combinedDays.findIndex((d) => d.isToday);
-      if (todayIndex === -1) todayIndex = combinedDays.findIndex((d) => d.hasPromo);
-      if (todayIndex === -1) todayIndex = 0;
-
-      setDays(combinedDays);
-      setActiveIndex(todayIndex);
-      setYear(payload.year);
-      setMonth(payload.month);
-    } catch {
-      // ignore
-    }
-  }, []);
-
+export function useCalendarMobileDays({ days: monthDays = [], year, month, isRange = false }) {
+  const days = useMemo(
+    () => [...(isRange ? [] : buildGhostDays(year, month)), ...monthDays],
+    [monthDays, year, month, isRange]
+  );
+  const [activeIndex, setActiveIndex] = useState(() => initialDayIndex(days));
   return { days, activeIndex, setActiveIndex, year, month };
 }

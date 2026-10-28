@@ -1,6 +1,7 @@
 // src/components/CalendarMobileFootball.js
 "use client";
 
+import { initialDayIndex } from "@/lib/calendar/useCalendarMobileDays";
 import { useEffect, useRef, useState } from "react";
 import { russoOne } from "@/app/fonts";
 import MonthPagination from "@/components/calendar/MonthPagination";
@@ -19,13 +20,13 @@ export default function CalendarMobileFootball({
   adminPreview = false,
   lang = "sr",
   defaultLocale = "sr",
+  days = [],
   year,
   month,
   prevMonth = null,
   nextMonth = null,
 }) {
-  const [days, setDays] = useState([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState(() => initialDayIndex(days));
   const [swipeHintPhase, setSwipeHintPhase] = useState("visible"); // visible | fading | hidden
   const [activeDot, setActiveDot] = useState(0);
   const chipRefs = useRef([]);
@@ -35,27 +36,6 @@ export default function CalendarMobileFootball({
   const lastSwipeVibrateAtRef = useRef(0);
   const ballTouchRef = useRef({ startX: 0, startY: 0 });
   const ballSwipedRef = useRef(false);
-  useEffect(() => {
-    const dataEl = document.getElementById("calendar-data");
-    if (!dataEl) return;
-
-    try {
-      const payload = JSON.parse(dataEl.textContent || "{}");
-      const allDays = Array.isArray(payload.days) ? payload.days : [];
-      const from = payload.visibleFrom || 1;
-      const to = payload.visibleTo || 31;
-      const currentDays = allDays.filter((d) => d && typeof d.day === "number" && d.day >= from && d.day <= to);
-
-      let todayIndex = currentDays.findIndex((d) => d.isToday);
-      if (todayIndex === -1) todayIndex = currentDays.findIndex((d) => d.hasPromo);
-      if (todayIndex === -1) todayIndex = 0;
-
-      setDays(currentDays);
-      setSelectedIndex(todayIndex >= 0 ? todayIndex : 0);
-    } catch {
-      // ignore
-    }
-  }, [year, month]);
 
   // Auto-scroll chip into view when selectedIndex changes
   useEffect(() => {

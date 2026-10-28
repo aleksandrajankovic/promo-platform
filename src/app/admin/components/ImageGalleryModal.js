@@ -11,26 +11,25 @@ export default function ImageGalleryModal({ onSelect, onClose }) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  async function loadImages() {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/images");
-      if (!res.ok) {
-        throw new Error(await res.text().catch(() => "Failed to load images"));
-      }
-      const data = await res.json();
-      setImages(data.files || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load gallery.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // Lista slika se učitava jednom, pri otvaranju galerije (loading kreće kao true).
   useEffect(() => {
-    loadImages();
+    let cancelled = false;
+    fetch("/api/images")
+      .then(async (res) => {
+        if (!res.ok) throw new Error(await res.text().catch(() => "Failed to load images"));
+        return res.json();
+      })
+      .then((data) => !cancelled && setImages(data.files || []))
+      .catch((err) => {
+        console.error(err);
+        toast.error("Failed to load gallery.");
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
 
   async function handleDelete(filename) {
     const ok = await confirmDialog({

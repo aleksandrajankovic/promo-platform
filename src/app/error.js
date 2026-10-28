@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function Error({ error, reset }) {
   return (
     <main className="min-h-screen flex items-center justify-center bg-neutral-950 px-4">
@@ -21,12 +23,12 @@ export default function Error({ error, reset }) {
           >
             Try again
           </button>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center px-5 py-2.5 rounded border border-neutral-700 text-neutral-300 text-sm font-semibold hover:bg-neutral-800 transition"
           >
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     </main>

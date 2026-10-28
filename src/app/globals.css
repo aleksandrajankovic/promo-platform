@@ -491,3 +491,16 @@ button {
 .flip-card-back {
   transform: rotateY(180deg);
 }
+
+/* Korisnici koji u sistemu traže smanjene pokrete: animacije i prelazi
+   (flip kartica, modal, sneg...) se praktično preskaču. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

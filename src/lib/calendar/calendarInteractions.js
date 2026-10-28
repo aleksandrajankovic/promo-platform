@@ -23,6 +23,9 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
   const modal = root.querySelector("#promo-modal");
   const content = root.querySelector("#promo-content");
   const closeBtn = root.querySelector("#promo-close");
+  // element koji je imao fokus pre otvaranja (dan na koji se kliknulo) —
+  // fokus mu se vraća pri zatvaranju (tastatura, čitači ekrana)
+  let lastFocused = null;
   const dialog = modal ? modal.querySelector("#promo-dialog") : null;
 
   if (!modal || !content) return;
@@ -93,6 +96,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
       }));
     }
 
+    lastFocused = document.activeElement;
     modal.classList.remove("hidden");
     document.body.style.overflow = "hidden";
     isOpen = true;
@@ -118,6 +122,7 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
 
     setTimeout(() => {
       animateOpen();
+      closeBtn?.focus({ preventScroll: true });
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           const canvas = document.getElementById("scratch-canvas");
@@ -136,6 +141,8 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
     animateClose(() => {
       modal.classList.add("hidden");
       content.innerHTML = "";
+      if (lastFocused && document.contains(lastFocused)) lastFocused.focus({ preventScroll: true });
+      lastFocused = null;
 
       if (!fromPopstate && previousUrl) {
         history.replaceState(null, "", previousUrl);
@@ -233,10 +240,26 @@ export function initCalendarInteractions(rootSelector = "#calendar-root", { open
     }
   });
 
-  // ESC
+  // ESC zatvara; Tab kruži samo kroz elemente unutar otvorenog modala
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && isOpen) {
+    if (!isOpen) return;
+    if (e.key === "Escape") {
       closeModal();
+      return;
+    }
+    if (e.key === "Tab" && dialog) {
+      const focusable = [...dialog.querySelectorAll('a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => el.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   });
 

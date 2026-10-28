@@ -23,10 +23,8 @@ jobs:
 
       - run: npm ci
 
-      # Non-blocking: repo has pre-existing lint findings unrelated to this
-      # workflow's introduction. Still reports, doesn't fail the build.
+      # Obavezno: greške lint-a obaraju build (upozorenja ne).
       - run: npm run lint
-        continue-on-error: true
 
       - run: npm test
 

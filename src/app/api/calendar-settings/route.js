@@ -5,6 +5,7 @@ import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
 import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 import { mergeLocalizedSeo, mergeLocalizedText } from "@/lib/i18n/localizedText";
+import { checkImageUrl } from "@/lib/validate";
 
 const VALID_POS = ["left", "center", "right"];
 const VALID_THEMES = ["default", "default-horizontal", "football"];
@@ -59,17 +60,18 @@ export async function PUT(req) {
   // Partial update — only touch fields present in the request body
   const patch = {};
 
-  if ("bgImageUrl" in body)
-    patch.bgImageUrl = (body.bgImageUrl || "").trim() || null;
-
-  if ("bgImageUrlMobile" in body)
-    patch.bgImageUrlMobile = (body.bgImageUrlMobile || "").trim() || null;
+  // URL-ovi slika: nevažeći se odbija (400) umesto da se upiše u style/src
+  const IMAGE_FIELDS = ["bgImageUrl", "bgImageUrlMobile", "logoUrl", "scratchCoverUrl", "scratchCursorUrl"];
+  for (const field of IMAGE_FIELDS) {
+    if (!(field in body)) continue;
+    const { url, error } = checkImageUrl(body[field]);
+    if (error) return new Response(`${field} ${error}`, { status: 400 });
+    patch[field] = url;
+  }
 
   if ("calendarPosition" in body)
     patch.calendarPosition = VALID_POS.includes(body.calendarPosition) ? body.calendarPosition : "left";
 
-  if ("logoUrl" in body)
-    patch.logoUrl = (body.logoUrl || "").trim() || null;
 
   if ("calendarTitle" in body) {
     patch.calendarTitle = mergeLocalizedText(existing?.calendarTitle, body.calendarTitle, marketLangs(market));
@@ -94,11 +96,7 @@ export async function PUT(req) {
     patch.countdownLabel = mergeLocalizedText(existing?.countdownLabel, incoming, marketLangs(market));
   }
 
-  if ("scratchCoverUrl" in body)
-    patch.scratchCoverUrl = (body.scratchCoverUrl || "").trim() || null;
 
-  if ("scratchCursorUrl" in body)
-    patch.scratchCursorUrl = (body.scratchCursorUrl || "").trim() || null;
 
   if ("leaderboard" in body) {
     const lb = body.leaderboard || {};
@@ -115,8 +113,13 @@ export async function PUT(req) {
       const out = {};
       for (const [key, val] of Object.entries(raw)) {
         if (val && typeof val === "object") {
-          const desktop  = (val.desktop  || "").trim() || null;
-          const mobile   = (val.mobile   || "").trim() || null;
+          const desktopCheck = checkImageUrl(val.desktop);
+          const mobileCheck  = checkImageUrl(val.mobile);
+          if (desktopCheck.error || mobileCheck.error) {
+            return new Response(`month ${key} background ${desktopCheck.error || mobileCheck.error}`, { status: 400 });
+          }
+          const desktop  = desktopCheck.url;
+          const mobile   = mobileCheck.url;
           const position = VALID_POS.includes(val.position) ? val.position : null;
           const titleSr  = (val.titleSr  || "").trim() || null;
           const inactive = val.inactive === true ? true : null;

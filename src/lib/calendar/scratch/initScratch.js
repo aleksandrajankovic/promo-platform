@@ -233,6 +233,7 @@ export function initScratch() {
       for (let i = 0; i < 10; i++) {
         setTimeout(() => {
           confetti({
+            disableForReducedMotion: true,
             ...base,
             particleCount: 8 + Math.floor(Math.random() * 8),
             spread: 50 + Math.random() * 50,
@@ -243,9 +244,9 @@ export function initScratch() {
       }
     } else {
       const colors = ["#ff0000", "#ffd700", "#17bb00", "#0066ff", "#ff69b4", "#ffffff"];
-      confetti({ particleCount: 80, spread: 70, startVelocity: 38, ticks: 300, origin: { x: 0.35, y: 0.35 }, colors });
+      confetti({ disableForReducedMotion: true, particleCount: 80, spread: 70, startVelocity: 38, ticks: 300, origin: { x: 0.35, y: 0.35 }, colors });
       setTimeout(() => {
-        confetti({ particleCount: 60, spread: 80, startVelocity: 32, ticks: 300, origin: { x: 0.65, y: 0.35 }, colors });
+        confetti({ disableForReducedMotion: true, particleCount: 60, spread: 80, startVelocity: 32, ticks: 300, origin: { x: 0.65, y: 0.35 }, colors });
       }, 150);
     }
 

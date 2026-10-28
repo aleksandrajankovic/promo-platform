@@ -1,7 +1,7 @@
 // app/admin/weekly-plan/page.jsx
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useWeeklyPlan } from "./useWeeklyPlan";
@@ -19,34 +19,19 @@ export default function WeeklyPlanAdmin() {
   const router = useRouter();
   const now = new Date();
 
+  // Godina/mesec žive samo u URL-u (?y=&m=) — nema kopije u state-u koju bi
+  // trebalo sinhronizovati efektom kad se URL promeni.
   const y0 = Number.parseInt(sp.get("y") ?? "", 10);
   const m0 = Number.parseInt(sp.get("m") ?? "", 10);
+  const year = Number.isInteger(y0) ? y0 : now.getFullYear();
+  const month = Number.isInteger(m0) && m0 >= 0 && m0 <= 11 ? m0 : now.getMonth();
 
-  const [year, setYear] = useState(
-    Number.isInteger(y0) ? y0 : now.getFullYear()
-  );
-
-  const [month, setMonth] = useState(
-    Number.isInteger(m0) && m0 >= 0 && m0 <= 11 ? m0 : now.getMonth()
-  );
-
-  // helper: sinhronizuj URL sa year/month
   function setYM(nextY, nextM) {
     const params = new URLSearchParams(sp.toString());
     params.set("y", String(nextY));
     params.set("m", String(nextM));
     router.replace(`?${params.toString()}`);
   }
-
-  // Ako korisnik ručno promeni URL ili dođe sa linka, sinhronizuj state
-  useEffect(() => {
-    const yy = Number.parseInt(sp.get("y") ?? "", 10);
-    const mm = Number.parseInt(sp.get("m") ?? "", 10);
-
-    if (Number.isInteger(yy) && yy !== year) setYear(yy);
-    if (Number.isInteger(mm) && mm >= 0 && mm <= 11 && mm !== month) setMonth(mm);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sp]);
 
   const { rows, loading, error, upsert, remove, bulkToggle, copyFromPrevious } = useWeeklyPlan(year, month);
   const [copying, setCopying] = useState(false);
@@ -75,7 +60,8 @@ export default function WeeklyPlanAdmin() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [editing, setEditing] = useState(null); // weekday 0..6
 
-  const initial = useMemo(() => {
+  // podaci za editor izabranog dana (postojeći red ili prazan nacrt)
+  const initial = (() => {
     if (editing == null) return null;
     const existing = rows.find((r) => r.weekday === editing);
     return (
@@ -94,7 +80,7 @@ export default function WeeklyPlanAdmin() {
         category: "ALL",
       }
     );
-  }, [editing, rows, year, month]);
+  })();
 
   async function handleBulkToggle(active) {
     setBulkLoading(true);
@@ -161,7 +147,6 @@ export default function WeeklyPlanAdmin() {
               value={year}
               onChange={(e) => {
                 const nextY = Number(e.target.value);
-                setYear(nextY);
                 setYM(nextY, month);
               }}
               aria-label="Select year"
@@ -179,7 +164,6 @@ export default function WeeklyPlanAdmin() {
               value={month}
               onChange={(e) => {
                 const nextM = Number(e.target.value);
-                setMonth(nextM);
                 setYM(year, nextM);
               }}
               aria-label="Select month"

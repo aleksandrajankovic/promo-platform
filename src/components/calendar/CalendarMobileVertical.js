@@ -4,26 +4,14 @@
 import { useEffect, useState } from "react";
 import { getCategoryGradient } from "@/lib/calendar/promoCategoryStyles";
 import { rowdies } from "@/app/fonts";
-import { getOpenedDays } from "@/lib/calendar/calendarProgress";
+import { useOpenedDays } from "@/lib/calendar/calendarProgress";
 import { useCalendarMobileDays } from "@/lib/calendar/useCalendarMobileDays";
 import PromoIcon from "@/components/calendar/promo/PromoIcon";
 
-export default function CalendarMobileVertical({ adminPreview = false }) {
-  const { days, activeIndex, setActiveIndex, year, month } = useCalendarMobileDays();
+export default function CalendarMobileVertical({ adminPreview = false, days: monthDays, year, month, isRange }) {
+  const { days, activeIndex, setActiveIndex } = useCalendarMobileDays({ days: monthDays, year, month, isRange });
   const [touchStartY, setTouchStartY] = useState(null);
-  const [openedDays, setOpenedDays] = useState(new Set());
-
-  useEffect(() => {
-    if (year == null || month == null) return;
-    setOpenedDays(getOpenedDays(year, month));
-    const handler = (e) => {
-      if (e.detail?.year === year && e.detail?.month === month) {
-        setOpenedDays(getOpenedDays(year, month));
-      }
-    };
-    window.addEventListener("mb-day-opened", handler);
-    return () => window.removeEventListener("mb-day-opened", handler);
-  }, [year, month]);
+  const openedDays = useOpenedDays(year, month);
 
   const goPrev = () => setActiveIndex((idx) => (idx > 0 ? idx - 1 : idx));
   const goNext = () => setActiveIndex((idx) => (idx < days.length - 1 ? idx + 1 : idx));

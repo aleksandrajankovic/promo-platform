@@ -151,7 +151,7 @@ export default function BrandingLayoutTab({
           )}
         </div>
         <p className="text-xs text-neutral-500 mt-2">
-          Every "Override for {monthLabel}" section below (Title, Theme, Position, Visible days & spacing, Background) and the deactivate switch apply to this month. Change the month here, it updates everywhere at once.
+          Every &quot;Override for {monthLabel}&quot; section below (Title, Theme, Position, Visible days & spacing, Background) and the deactivate switch apply to this month. Change the month here, it updates everywhere at once.
         </p>
       </div>
 
@@ -253,7 +253,7 @@ export default function BrandingLayoutTab({
       <AdminTableCard title="Calendar Theme">
         <div className="p-4 space-y-4">
           <p className="text-sm text-neutral-500">
-            Global default visual style. "Football" shows balls instead of cards.
+            Global default visual style. &quot;Football&quot; shows balls instead of cards.
           </p>
           <div className="flex gap-3 flex-wrap">
             {THEME_OPTIONS.map((opt) => (

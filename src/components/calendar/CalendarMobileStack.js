@@ -8,8 +8,8 @@ import { useCalendarMobileDays } from "@/lib/calendar/useCalendarMobileDays";
 import PromoIcon from "@/components/calendar/promo/PromoIcon";
 import LockOverlay from "@/components/calendar/promo/LockOverlay";
 
-export default function CalendarMobileStack({ adminPreview = false }) {
-  const { days, activeIndex, setActiveIndex } = useCalendarMobileDays();
+export default function CalendarMobileStack({ adminPreview = false, days: monthDays, year, month, isRange }) {
+  const { days, activeIndex, setActiveIndex } = useCalendarMobileDays({ days: monthDays, year, month, isRange });
   const containerRef = useRef(null);
 
   useEffect(() => {
