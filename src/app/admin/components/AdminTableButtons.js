@@ -6,21 +6,26 @@ export function StatusToggleButton({
   className = "",
   activeLabel = "Deactivate",
   inactiveLabel = "Activate",
+  disabled = false,
+  loading = false,
 }) {
+  const label = active ? activeLabel : inactiveLabel;
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled || loading}
+      aria-label={label}
       className={
-        `w-full h-8 text-xs rounded border uppercase cursor-pointer
+        `w-full h-8 text-xs rounded border uppercase cursor-pointer disabled:cursor-not-allowed disabled:opacity-50
         ${
           active
-            ? "border-[#4A4A4A] text-[#4A4A4A] bg-white hover:bg-neutral-50"
-            : "border-green-600 text-green-700 bg-white hover:bg-green-50"
+            ? "border-neutral-600 text-neutral-700 bg-white hover:bg-neutral-50"
+            : "border-admin-primary text-admin-primary bg-white hover:bg-green-50"
         } ` + className
       }
     >
-      {active ? activeLabel : inactiveLabel}
+      {loading ? "..." : label}
     </button>
   );
 }

@@ -8,9 +8,10 @@ import { useWeeklyPlan } from "./useWeeklyPlan";
 import WeeklyEditor from "./components/WeeklyEditor";
 import AdminTableCard from "../components/AdminTableCard";
 import { StatusToggleButton, IconButton } from "../components/AdminTableButtons";
-import { confirmDeleteToast } from "../components/ConfirmDeleteToast";
+import { confirmDialog } from "../components/ui/ConfirmDialog";
 import { WEEKDAY_LABELS } from "../components/PromoEditorFields";
 import { PreviewCalendarButton } from "../components/MonthNavigator";
+import Button from "../components/ui/Button";
 import { LastEditedBy } from "../components/PromoHistory";
 
 export default function WeeklyPlanAdmin() {
@@ -55,7 +56,12 @@ export default function WeeklyPlanAdmin() {
   async function handleCopy() {
     const existing = rows.length;
     const note = existing ? ` The ${existing} day(s) already filled in ${monthName} stay unchanged.` : "";
-    if (!window.confirm(`Copy weekly promotions from ${prevMonthName} into ${monthName}?\n\nCopies are added as INACTIVE drafts — review them and activate when ready.${note}`)) return;
+    const ok = await confirmDialog({
+      title: `Copy ${prevMonthName} into ${monthName}?`,
+      message: `Copies are added as inactive drafts — review them and activate when ready.${note}`,
+      confirmLabel: "Copy",
+    });
+    if (!ok) return;
     setCopying(true);
     try {
       const count = await copyFromPrevious();
@@ -132,15 +138,14 @@ export default function WeeklyPlanAdmin() {
         </div>
         <div className="flex items-center gap-2">
           {!loading && rows.length < 7 && (
-            <button
-              type="button"
+            <Button
+              variant="secondary"
               onClick={handleCopy}
               disabled={copying}
-              className="rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50"
               title={`Copy ${prevMonthName} into ${monthName} as inactive drafts`}
             >
               {copying ? "Copying…" : `Copy from ${prevMonthName}`}
-            </button>
+            </Button>
           )}
           <PreviewCalendarButton year={year} month={month} />
         </div>
@@ -188,22 +193,12 @@ export default function WeeklyPlanAdmin() {
 
             {rows.length > 0 && (
               <>
-                <button
-                  type="button"
-                  disabled={bulkLoading}
-                  onClick={() => handleBulkToggle(true)}
-                  className="px-3 py-1 text-xs rounded border border-green-600 text-green-700 bg-white hover:bg-green-50 disabled:opacity-50"
-                >
-                  Activate All ({rows.length})
-                </button>
-                <button
-                  type="button"
-                  disabled={bulkLoading}
-                  onClick={() => handleBulkToggle(false)}
-                  className="px-3 py-1 text-xs rounded border border-neutral-400 text-neutral-600 bg-white hover:bg-neutral-50 disabled:opacity-50"
-                >
-                  Deactivate All ({rows.length})
-                </button>
+                <Button size="sm" variant="secondary" disabled={bulkLoading} onClick={() => handleBulkToggle(true)}>
+                  Activate all ({rows.length})
+                </Button>
+                <Button size="sm" variant="secondary" disabled={bulkLoading} onClick={() => handleBulkToggle(false)}>
+                  Deactivate all ({rows.length})
+                </Button>
               </>
             )}
           </div>
@@ -288,11 +283,15 @@ export default function WeeklyPlanAdmin() {
                     {r && (
                       <IconButton
                         variant="delete"
-                        onClick={() =>
-                          confirmDeleteToast(r.title || WEEKDAY_LABELS[wd], () =>
-                            remove(wd)
-                          )
-                        }
+                        onClick={async () => {
+                          const ok = await confirmDialog({
+                            title: "Delete this weekly promotion?",
+                            message: `${WEEKDAY_LABELS[wd]}: ${r.title || "untitled"}`,
+                            confirmLabel: "Delete",
+                            tone: "danger",
+                          });
+                          if (ok) remove(wd);
+                        }}
                         title="Delete"
                       />
                     )}

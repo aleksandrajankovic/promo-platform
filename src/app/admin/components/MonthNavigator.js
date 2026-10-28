@@ -4,6 +4,7 @@
 // — uvek na istom mestu, ne samo unutar editora.
 
 import { openCalendarPreview } from "./PromoEditorFields";
+import Button from "./ui/Button";
 
 const SHORT_MONTHS = Array.from({ length: 12 }, (_, i) =>
   new Date(2000, i, 1).toLocaleString("en", { month: "short" })
@@ -11,14 +12,14 @@ const SHORT_MONTHS = Array.from({ length: 12 }, (_, i) =>
 
 export function PreviewCalendarButton({ year, month, className = "" }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
       onClick={() => openCalendarPreview(year, month)}
-      className={`inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50 ${className}`}
+      className={className}
       title="Open the public calendar for this month in a new tab"
     >
       Preview calendar <span aria-hidden="true">↗</span>
-    </button>
+    </Button>
   );
 }
 
@@ -56,7 +57,7 @@ export default function MonthNavigator({ year, month, counts = {}, onChange }) {
               onClick={() => onChange(year, m)}
               className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
                 selected
-                  ? "border-[#AC1C09] bg-[#AC1C09] text-white"
+                  ? "border-admin-brand bg-admin-brand text-white"
                   : count
                     ? "border-neutral-300 bg-white text-neutral-800 hover:bg-neutral-100"
                     : "border-dashed border-neutral-300 bg-white text-neutral-400 hover:bg-neutral-50"

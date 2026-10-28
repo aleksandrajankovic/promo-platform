@@ -80,7 +80,7 @@ export default function LinkControl({ editor }) {
             <button
               type="button"
               onClick={applyLink}
-              className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:brightness-110"
+              className="px-3 py-1 text-xs rounded bg-admin-primary text-white hover:bg-admin-primary-hover"
             >
               Save
             </button>

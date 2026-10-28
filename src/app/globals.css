@@ -4,10 +4,19 @@
 :root {
   --background: #05080e;
   --foreground: #171717;
-  --green-primary: #17bb00;
+  --green-primary: #17bb00; /* staro ime, isto što i --color-admin-primary */
   --black-white: #2d2d2d;
   --black-white-80: #404040;
   --black-white-90: #2d2d2d;
+}
+
+/* Admin boje — jedini izvor; klase bg-admin-primary, text-admin-danger itd. */
+@theme {
+  --color-admin-primary: #17bb00;
+  --color-admin-primary-hover: #129600;
+  --color-admin-danger: #d92d20;
+  --color-admin-danger-hover: #b42318;
+  --color-admin-brand: #ac1c09;
 }
 
 @theme inline {

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { confirmDialog } from "../components/ui/ConfirmDialog";
+import Button from "../components/ui/Button";
+import AdminTableCard from "../components/AdminTableCard";
 
 export default function AdminUsersPage() {
   const [admins, setAdmins] = useState([]);
@@ -21,6 +24,7 @@ export default function AdminUsersPage() {
   const [editMarketIds, setEditMarketIds] = useState([]);
   const [meId, setMeId] = useState(null);
   const [tempPassword, setTempPassword] = useState(null); // { name, password }
+  const [showNew, setShowNew] = useState(false);
 
   // ucitavanje liste admina i trzista
   useEffect(() => {
@@ -62,7 +66,6 @@ export default function AdminUsersPage() {
       }
     }
     loadAdmins();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function onSubmit(e) {
@@ -112,6 +115,7 @@ export default function AdminUsersPage() {
       setPwd("");
       setRole("ADMIN");
       setMarketIds([]);
+      setShowNew(false);
     } catch (err) {
       console.error(err);
       toast.error("Failed to create admin user.");
@@ -180,7 +184,13 @@ export default function AdminUsersPage() {
   }
 
   async function resetPassword(admin) {
-    if (!window.confirm(`Reset the password for ${admin.name}? They will be signed out and must set a new password at their next login.`)) return;
+    const ok = await confirmDialog({
+      title: `Reset the password for ${admin.name}?`,
+      message: "They will be signed out everywhere and must set a new password at their next login.",
+      confirmLabel: "Reset password",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/admin/users/${admin.id}/reset-password`, { method: "POST" });
       if (!res.ok) throw new Error(await res.text());
@@ -193,7 +203,13 @@ export default function AdminUsersPage() {
   }
 
   async function reset2fa(admin) {
-    if (!window.confirm(`Turn off two-factor authentication for ${admin.name}? Use this only if they lost their phone and backup codes.${admin.role === "SUPER_ADMIN" ? " They will have to set it up again at their next login." : ""}`)) return;
+    const ok = await confirmDialog({
+      title: `Reset 2FA for ${admin.name}?`,
+      message: `Use this only if they lost their phone and backup codes.${admin.role === "SUPER_ADMIN" ? " They will have to set it up again at their next login." : ""}`,
+      confirmLabel: "Reset 2FA",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/admin/users/${admin.id}/reset-2fa`, { method: "POST" });
       if (!res.ok) throw new Error(await res.text());
@@ -205,7 +221,14 @@ export default function AdminUsersPage() {
   }
 
   async function deleteAdmin(id) {
-    if (!window.confirm("Delete this admin user?")) return;
+    const admin = admins.find((a) => a.id === id);
+    const ok = await confirmDialog({
+      title: `Delete ${admin?.name || "this admin"}?`,
+      message: "The account is removed permanently. Their promotion history stays.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/admin/users/${id}`, {
@@ -225,299 +248,172 @@ export default function AdminUsersPage() {
     }
   }
 
+  const inputClass = "mt-1 w-full rounded border border-[#D0D0D0] px-2.5 py-1.5 text-sm";
+
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-4 text-slate-900">
-          Users
-        </h1>
-
-        {/* Forma za dodavanje admina */}
-        <section className="mb-8 bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-medium mb-3 text-slate-900">
-            Add new admin
-          </h2>
-
-          <form
-            onSubmit={onSubmit}
-            className="grid gap-4 sm:grid-cols-2 sm:gap-6"
-          >
-            <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700">
-                Name
-              </label>
-              <input
-                type="text"
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green-primary)]"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <input
-                type="email"
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green-primary)]"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <input
-                type="password"
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--green-primary)]"
-                value={pwd}
-                onChange={(e) => setPwd(e.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-
-            <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-slate-700">
-                Role
-              </label>
-              <select
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
-                <option value="ADMIN">Admin (selected markets)</option>
-                <option value="SUPER_ADMIN">Super admin (all markets)</option>
-              </select>
-            </div>
-
-            {role === "ADMIN" && (
-              <div className="sm:col-span-1">
-                <label className="block text-sm font-medium text-slate-700">
-                  Markets
-                </label>
-                <MarketCheckboxes markets={markets} value={marketIds} onChange={setMarketIds} />
-              </div>
-            )}
-
-            <div className="sm:col-span-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="inline-flex items-center justify-center rounded-lg bg-[var(--green-primary)] text-white text-sm font-semibold px-4 py-2 uppercase tracking-wide hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Saving..." : "Add admin"}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        {/* Lista admina */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-medium mb-3 text-slate-900">
-            Existing admins
-          </h2>
-
-          {loading ? (
-            <p className="text-sm text-slate-600">Loading...</p>
-          ) : error ? (
-            <p className="text-sm text-red-600">{error}</p>
-          ) : admins.length === 0 ? (
-            <p className="text-sm text-slate-600">No admins yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      ID
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      Name
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      Email
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      Role / markets
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      Created
-                    </th>
-                    <th className="text-left py-2 px-3 font-medium text-slate-700">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {admins.map((a) => {
-                    const isEditing = editingId === a.id;
-                    return (
-                      <tr
-                        key={a.id}
-                        className="border-b border-slate-100 last:border-b-0"
-                      >
-                        <td className="py-2 px-3 text-slate-800">{a.id}</td>
-
-                        <td className="py-2 px-3 text-slate-800">
-                          {isEditing ? (
-                            <input
-                              className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
-                              value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
-                            />
-                          ) : (
-                            a.name
-                          )}
-                        </td>
-
-                        <td className="py-2 px-3 text-slate-700">
-                          {isEditing ? (
-                            <input
-                              className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
-                              value={editEmail}
-                              onChange={(e) => setEditEmail(e.target.value)}
-                            />
-                          ) : (
-                            a.email
-                          )}
-                        </td>
-
-                        <td className="py-2 px-3">
-                          {a.role === "SUPER_ADMIN" ? (
-                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
-                              SUPER
-                            </span>
-                          ) : isEditing ? (
-                            <MarketCheckboxes markets={markets} value={editMarketIds} onChange={setEditMarketIds} />
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {(a.markets?.length ? a.markets : [{ code: "admin" }]).map((m) => (
-                                <span
-                                  key={m.code}
-                                  className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700"
-                                >
-                                  {m.code.toUpperCase()}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {a.totpEnabled && (
-                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">2FA</span>
-                            )}
-                            {a.role === "SUPER_ADMIN" && !a.totpEnabled && (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">2FA at next login</span>
-                            )}
-                            {a.mustChangePassword && (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">temporary password</span>
-                            )}
-                          </div>
-                        </td>
-
-                        <td className="py-2 px-3 text-slate-500">
-                          {a.createdAt
-                            ? new Date(a.createdAt).toLocaleString()
-                            : "-"}
-                        </td>
-
-                        <td className="py-2 px-3">
-                          {isEditing ? (
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => saveEdit(a)}
-                                className="text-xs px-3 py-1 rounded bg-[var(--green-primary)] text-white hover:brightness-110"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={cancelEdit}
-                                className="text-xs px-3 py-1 rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => startEdit(a)}
-                                className="text-xs px-3 py-1 rounded border border-slate-300 text-slate-700 hover:bg-slate-50"
-                              >
-                                Edit
-                              </button>
-                              {a.id !== meId && (
-                                <button
-                                  type="button"
-                                  onClick={() => resetPassword(a)}
-                                  className="text-xs px-3 py-1 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 whitespace-nowrap"
-                                >
-                                  Reset password
-                                </button>
-                              )}
-                              {a.id !== meId && a.totpEnabled && (
-                                <button
-                                  type="button"
-                                  onClick={() => reset2fa(a)}
-                                  className="text-xs px-3 py-1 rounded border border-slate-300 text-slate-700 hover:bg-slate-50 whitespace-nowrap"
-                                >
-                                  Reset 2FA
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => deleteAdmin(a.id)}
-                                className="text-xs px-3 py-1 rounded bg-red-600 text-white hover:bg-red-700"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+    <>
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div className="mb-2">
+          <h1 className="text-xl font-semibold">Backoffice - Users</h1>
+          <p className="text-sm text-neutral-500">Admin accounts, their markets and sign-in security.</p>
+        </div>
+        <Button onClick={() => setShowNew((v) => !v)}>{showNew ? "Close form" : "+ New admin"}</Button>
       </div>
+
+      {showNew && (
+        <div className="mb-6">
+          <AdminTableCard title="New admin">
+            <form onSubmit={onSubmit} className="grid gap-4 p-4 sm:grid-cols-2">
+              <label className="block text-sm text-neutral-800 sm:col-span-2">
+                Name
+                <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
+              </label>
+              <label className="block text-sm text-neutral-800">
+                Email
+                <input type="email" className={inputClass} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
+              </label>
+              <label className="block text-sm text-neutral-800">
+                Initial password
+                <input type="password" className={inputClass} value={pwd} onChange={(e) => setPwd(e.target.value)} autoComplete="new-password" />
+                <span className="mt-1 block text-xs text-neutral-500">They must change it at their first login.</span>
+              </label>
+              <label className="block text-sm text-neutral-800">
+                Role
+                <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value)}>
+                  <option value="ADMIN">Admin (selected markets)</option>
+                  <option value="SUPER_ADMIN">Super admin (all markets, 2FA required)</option>
+                </select>
+              </label>
+              {role === "ADMIN" && (
+                <div className="text-sm text-neutral-800">
+                  Markets
+                  <MarketCheckboxes markets={markets} value={marketIds} onChange={setMarketIds} />
+                </div>
+              )}
+              <div className="sm:col-span-2">
+                <Button type="submit" disabled={saving}>{saving ? "Saving…" : "Add admin"}</Button>
+              </div>
+            </form>
+          </AdminTableCard>
+        </div>
+      )}
+
+      <AdminTableCard
+        title={`Admins${admins.length ? ` (${admins.length})` : ""}`}
+        columns={[
+          { key: "who", label: "Name" },
+          { key: "access", label: "Access", width: "220px" },
+          { key: "created", label: "Created", width: "130px" },
+          { key: "actions", label: "Actions", width: "330px", className: "text-right pr-2" },
+        ]}
+      >
+        {loading && <div className="p-4 text-sm text-neutral-500">Loading…</div>}
+        {error && <div className="p-4 text-sm text-red-600">{error}</div>}
+        {!loading && !error && (
+          <ul className="divide-y divide-neutral-200">
+            {admins.map((a, idx) => {
+              const isEditing = editingId === a.id;
+              const isMe = a.id === meId;
+              return (
+                <li
+                  key={a.id}
+                  className={`grid grid-cols-1 items-center gap-3 px-4 py-3 lg:grid-cols-[1fr_220px_130px_330px] ${
+                    idx % 2 === 0 ? "bg-white" : "bg-[#F5F5F5]"
+                  }`}
+                >
+                  {/* Name + email */}
+                  <div className="min-w-0">
+                    {isEditing ? (
+                      <div className="space-y-1.5">
+                        <input className={inputClass} value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" />
+                        <input className={inputClass} value={editEmail} onChange={(e) => setEditEmail(e.target.value)} aria-label="Email" />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-sm font-semibold text-[var(--black-white-90)]">
+                          {a.name}
+                          {isMe && <span className="ml-2 rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-medium text-neutral-700">you</span>}
+                        </div>
+                        <div className="truncate text-xs text-neutral-500">{a.email}</div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Role / markets / security */}
+                  <div>
+                    {a.role === "SUPER_ADMIN" ? (
+                      <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">SUPER ADMIN</span>
+                    ) : isEditing ? (
+                      <MarketCheckboxes markets={markets} value={editMarketIds} onChange={setEditMarketIds} />
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {(a.markets?.length ? a.markets : [{ code: "none" }]).map((m) => (
+                          <span key={m.code} className="rounded-full bg-neutral-200 px-2 py-0.5 text-[11px] font-medium text-neutral-700">
+                            {m.code.toUpperCase()}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {a.totpEnabled && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">2FA</span>}
+                      {a.role === "SUPER_ADMIN" && !a.totpEnabled && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">2FA at next login</span>
+                      )}
+                      {a.mustChangePassword && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">temporary password</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-neutral-500">
+                    {a.createdAt ? new Date(a.createdAt).toLocaleDateString("en-GB") : "—"}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {isEditing ? (
+                      <>
+                        <Button size="sm" onClick={() => saveEdit(a)}>Save</Button>
+                        <Button size="sm" variant="secondary" onClick={cancelEdit}>Cancel</Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={() => startEdit(a)}>Edit</Button>
+                        {!isMe && <Button size="sm" variant="secondary" onClick={() => resetPassword(a)}>Reset password</Button>}
+                        {!isMe && a.totpEnabled && <Button size="sm" variant="secondary" onClick={() => reset2fa(a)}>Reset 2FA</Button>}
+                        {!isMe && <Button size="sm" variant="dangerOutline" onClick={() => deleteAdmin(a.id)}>Delete</Button>}
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </AdminTableCard>
 
       {tempPassword && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
             <h3 className="text-base font-semibold">Temporary password for {tempPassword.name}</h3>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-neutral-600">
               Send it to them through a safe channel. It is shown only now; they must change it at their next login.
             </p>
-            <code className="my-3 block rounded bg-slate-100 px-3 py-2 text-center text-lg tracking-wider">{tempPassword.password}</code>
+            <code className="my-3 block rounded bg-neutral-100 px-3 py-2 text-center text-lg tracking-wider">{tempPassword.password}</code>
             <div className="flex gap-2">
-              <button
-                type="button"
-                className="flex-1 rounded border border-slate-300 py-2 text-sm hover:bg-slate-50"
+              <Button
+                variant="secondary"
+                className="flex-1"
                 onClick={() => navigator.clipboard?.writeText(tempPassword.password).then(() => toast.success("Copied."))}
               >
                 Copy
-              </button>
-              <button
-                type="button"
-                className="flex-1 rounded bg-[var(--green-primary)] py-2 text-sm text-white"
-                onClick={() => setTempPassword(null)}
-              >
-                Done
-              </button>
+              </Button>
+              <Button className="flex-1" onClick={() => setTempPassword(null)}>Done</Button>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </>
   );
 }
 
@@ -528,7 +424,7 @@ function MarketCheckboxes({ markets, value, onChange }) {
   return (
     <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
       {markets.map((m) => (
-        <label key={m.id} className="inline-flex items-center gap-1.5 text-sm text-slate-700">
+        <label key={m.id} className="inline-flex items-center gap-1.5 text-sm text-neutral-700">
           <input type="checkbox" checked={value.includes(m.id)} onChange={() => toggle(m.id)} />
           {m.code.toUpperCase()}
         </label>

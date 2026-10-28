@@ -11,6 +11,8 @@ import ImageGalleryModal from "./ImageGalleryModal";
 import { monthHref } from "@/lib/calendar/calendarUrls";
 import { getAllowedCategories } from "@/lib/calendar/promoCategoryStyles";
 import { isValidLink } from "@/lib/validate";
+import { confirmDialog } from "./ui/ConfirmDialog";
+import Button from "./ui/Button";
 
 const LOCALE_LABELS = {
   sr: "Srpski", en: "English", sw: "Swahili", pt: "Portuguese", ba: "Bosanski", el: "Greek",
@@ -192,8 +194,17 @@ export function openCalendarPreview(year, month) {
 // ispod tabele, a zaglavlje (status, Save/Cancel) ostaje zalepljeno na vrhu.
 export function EditorShell({ heading, active, onToggleActive, onPreview, onCancel, onSave, saving, dirty = false, children }) {
   // zatvaranje sa nesnimljenim izmenama traži potvrdu (Cancel, Esc)
-  function requestClose() {
-    if (dirty && !window.confirm("You have unsaved changes. Close the editor and discard them?")) return;
+  async function requestClose() {
+    if (dirty) {
+      const ok = await confirmDialog({
+        title: "Discard unsaved changes?",
+        message: "Your changes in this editor will be lost.",
+        confirmLabel: "Discard",
+        cancelLabel: "Keep editing",
+        tone: "danger",
+      });
+      if (!ok) return;
+    }
     onCancel();
   }
 
@@ -242,21 +253,12 @@ export function EditorShell({ heading, active, onToggleActive, onPreview, onCanc
             >
               Preview ↗
             </button>
-            <button
-              type="button"
-              onClick={requestClose}
-              className="px-[18px] py-[7px] rounded border border-neutral-300 bg-white text-neutral-700 text-xs font-condensed hover:bg-neutral-50"
-            >
+            <Button size="sm" variant="secondary" onClick={requestClose}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={saving}
-              className="px-[18px] py-[7px] rounded bg-[#17BB00] text-white text-xs font-condensed hover:brightness-110 disabled:opacity-60"
-            >
+            </Button>
+            <Button size="sm" onClick={onSave} disabled={saving}>
               {saving ? "Saving..." : dirty ? "Save •" : "Save"}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -278,7 +280,7 @@ function ActiveSwitch({ active, onToggle }) {
     >
       <span
         className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
-          active ? "bg-[#17BB00]" : "bg-neutral-300"
+          active ? "bg-admin-primary" : "bg-neutral-300"
         }`}
       >
         <span
@@ -313,7 +315,7 @@ export function LanguageTabs({ market, activeLang, onChange }) {
           onClick={() => onChange(code)}
           className={`px-3 py-1.5 text-xs border-b-2 ${
             activeLang === code
-              ? "border-[#AC1C09] text-[#AC1C09] font-semibold"
+              ? "border-admin-brand text-admin-brand font-semibold"
               : "border-transparent text-neutral-600 hover:text-neutral-900"
           }`}
         >
@@ -424,7 +426,7 @@ export function PillSelector({ label, options, value, onChange }) {
               className={
                 "px-3 py-1 rounded-full text-[11px] font-medium border transition " +
                 (selected
-                  ? "bg-[#17BB00] text-white border-[#17BB00]"
+                  ? "bg-admin-primary text-white border-admin-primary"
                   : "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-100")
               }
             >
@@ -451,13 +453,9 @@ export function IconField({ value, onChange }) {
             onChange={(e) => onChange(e.target.value)}
             placeholder="/uploads/promo-icon.webp"
           />
-          <button
-            type="button"
-            onClick={() => setShowGallery(true)}
-            className="shrink-0 font-condensed inline-flex items-center justify-center px-4 py-[10px] rounded bg-[#1F2933] text-white text-xs hover:brightness-110 whitespace-nowrap"
-          >
+          <Button size="sm" variant="secondary" className="shrink-0" onClick={() => setShowGallery(true)}>
             Choose from gallery
-          </button>
+          </Button>
         </div>
 
         {value && (

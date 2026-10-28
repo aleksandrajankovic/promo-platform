@@ -9,6 +9,7 @@ import ScratchTab from "./components/ScratchTab";
 import SeoTab from "./components/SeoTab";
 import EngagementTab from "./components/EngagementTab";
 import { LanguageTabs } from "../components/PromoEditorFields";
+import Button from "../components/ui/Button";
 import { t as tr } from "@/lib/i18n/messages";
 
 const TABS = [
@@ -216,14 +217,9 @@ export default function CalendarStylePage() {
             />
           )}
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="mt-6 px-[18px] py-[7px] rounded bg-[#17BB00] text-white text-xs font-condensed hover:brightness-110 disabled:opacity-60"
-          >
+          <Button className="mt-6" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save"}
-          </button>
+          </Button>
         </>
       )}
 

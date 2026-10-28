@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import AdminTableCard from "../components/AdminTableCard";
+import Button from "../components/ui/Button";
 import { CodeInput, RecoveryCodesBox, SetupQr } from "@/components/admin-shared/TwoFactorParts";
 
 const MIN_PASSWORD_LENGTH = 10;
@@ -93,13 +94,9 @@ function PasswordCard({ me, onChanged }) {
         <Field label={me.mustChangePassword ? "Temporary password" : "Current password"} value={current} onChange={setCurrent} autoComplete="current-password" />
         <Field label={`New password (min. ${MIN_PASSWORD_LENGTH} characters)`} value={next} onChange={setNext} autoComplete="new-password" />
         <Field label="Repeat new password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded bg-[#17BB00] px-4 py-2 text-sm text-white hover:brightness-110 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={saving}>
           {saving ? "Saving…" : "Change password"}
-        </button>
+        </Button>
       </form>
     </AdminTableCard>
   );
@@ -193,23 +190,23 @@ function TwoFactorCard({ me, onChanged }) {
                 <span className="text-neutral-600">Enter a code from your app to confirm.</span>
                 <CodeInput value={code} onChange={setCode} />
                 <div className="flex gap-2">
-                  <button type="button" disabled={busy} onClick={() => confirmCode(pendingAction)} className="rounded bg-[#17BB00] px-3 py-1.5 text-white disabled:opacity-60">
+                  <Button size="sm" disabled={busy} onClick={() => confirmCode(pendingAction)}>
                     Confirm
-                  </button>
-                  <button type="button" onClick={() => setPendingAction(null)} className="rounded border px-3 py-1.5">
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => setPendingAction(null)}>
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
               <div className="flex gap-2">
-                <button type="button" onClick={() => setPendingAction("regenerate")} className="rounded border border-neutral-300 px-3 py-1.5 hover:bg-neutral-50">
+                <Button size="sm" variant="secondary" onClick={() => setPendingAction("regenerate")}>
                   New backup codes
-                </button>
+                </Button>
                 {!isSuper && (
-                  <button type="button" onClick={() => setPendingAction("disable")} className="rounded border border-red-300 px-3 py-1.5 text-red-700 hover:bg-red-50">
+                  <Button size="sm" variant="dangerOutline" onClick={() => setPendingAction("disable")}>
                     Turn off
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
@@ -220,12 +217,12 @@ function TwoFactorCard({ me, onChanged }) {
             <SetupQr qr={setup.qr} secret={setup.secret} />
             <CodeInput value={code} onChange={setCode} autoFocus={false} />
             <div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={() => confirmCode("enable")} className="rounded bg-[#17BB00] px-3 py-1.5 text-white disabled:opacity-60">
+              <Button size="sm" disabled={busy} onClick={() => confirmCode("enable")}>
                 Turn on
-              </button>
-              <button type="button" onClick={() => setSetup(null)} className="rounded border px-3 py-1.5">
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setSetup(null)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -234,9 +231,9 @@ function TwoFactorCard({ me, onChanged }) {
               <span className="mr-2 rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-700">Off</span>
               Optional for your account — adds a code from your phone to every sign-in.
             </p>
-            <button type="button" disabled={busy} onClick={startSetup} className="rounded bg-[#17BB00] px-3 py-1.5 text-white disabled:opacity-60">
+            <Button size="sm" disabled={busy} onClick={startSetup}>
               Turn on 2FA
-            </button>
+            </Button>
           </>
         )}
       </div>

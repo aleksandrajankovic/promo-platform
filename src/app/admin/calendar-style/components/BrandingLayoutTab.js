@@ -167,7 +167,7 @@ export default function BrandingLayoutTab({
             onClick={() => setField("inactive", currentBg.inactive ? null : true)}
             className={[
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
-              currentBg.inactive ? "bg-red-600" : "bg-neutral-300",
+              currentBg.inactive ? "bg-admin-danger" : "bg-neutral-300",
             ].join(" ")}
             role="switch"
             aria-checked={!!currentBg.inactive}
@@ -264,7 +264,7 @@ export default function BrandingLayoutTab({
                 className={[
                   "px-5 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors",
                   theme === opt.value
-                    ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                    ? "border-admin-brand bg-red-50 text-admin-brand"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400",
                 ].join(" ")}
               >
@@ -282,7 +282,7 @@ export default function BrandingLayoutTab({
                 className={[
                   "px-3 py-2 rounded border text-xs transition-colors",
                   !currentBg.theme
-                    ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                    ? "border-admin-brand bg-red-50 text-admin-brand"
                     : "border-neutral-200 text-neutral-500 hover:border-neutral-400",
                 ].join(" ")}
               >
@@ -296,7 +296,7 @@ export default function BrandingLayoutTab({
                   className={[
                     "px-4 py-2 rounded border-2 text-xs font-medium transition-colors",
                     currentBg.theme === opt.value
-                      ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                      ? "border-admin-brand bg-red-50 text-admin-brand"
                       : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400",
                   ].join(" ")}
                 >
@@ -323,7 +323,7 @@ export default function BrandingLayoutTab({
                 className={[
                   "flex flex-col items-center gap-2 px-6 py-4 rounded-lg border-2 text-sm font-medium transition-colors",
                   calendarPosition === opt.value
-                    ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                    ? "border-admin-brand bg-red-50 text-admin-brand"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400",
                 ].join(" ")}
               >
@@ -342,7 +342,7 @@ export default function BrandingLayoutTab({
                 className={[
                   "px-3 py-2 rounded border text-xs transition-colors",
                   !currentBg.position
-                    ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                    ? "border-admin-brand bg-red-50 text-admin-brand"
                     : "border-neutral-200 text-neutral-500 hover:border-neutral-400",
                 ].join(" ")}
               >
@@ -356,7 +356,7 @@ export default function BrandingLayoutTab({
                   className={[
                     "flex flex-col items-center gap-1.5 px-4 py-2.5 rounded border-2 text-xs font-medium transition-colors",
                     currentBg.position === opt.value
-                      ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                      ? "border-admin-brand bg-red-50 text-admin-brand"
                       : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400",
                   ].join(" ")}
                 >

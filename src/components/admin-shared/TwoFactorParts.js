@@ -72,7 +72,7 @@ export function RecoveryCodesBox({ codes, onDone, doneLabel = "I saved them — 
         type="button"
         disabled={!confirmed}
         onClick={onDone}
-        className="w-full rounded bg-[var(--green-primary)] py-2 text-white uppercase disabled:opacity-50"
+        className="w-full rounded bg-admin-primary py-2 text-white uppercase disabled:opacity-50"
       >
         {doneLabel}
       </button>

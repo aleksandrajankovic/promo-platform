@@ -1,6 +1,7 @@
 // app/admin/layout.jsx
 import AdminHeader from "./components/Header";
 import SidebarNav from "./components/Sidebar";
+import { ConfirmHost } from "./components/ui/ConfirmDialog";
 
 export const metadata = {
   robots: { index: false, follow: false },
@@ -16,6 +17,7 @@ export default function AdminLayout({ children }) {
           {children}
         </section>
       </main>
+      <ConfirmHost />
     </div>
   );
 }

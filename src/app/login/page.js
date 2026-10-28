@@ -223,7 +223,7 @@ function SubmitButton({ loading, label }) {
     <button
       type="submit"
       disabled={loading}
-      className="w-full bg-[var(--green-primary)] uppercase hover:bg-green-700 transition text-white rounded py-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+      className="w-full bg-admin-primary uppercase hover:bg-admin-primary-hover transition text-white rounded py-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
     >
       {loading ? "Loading..." : label}
     </button>

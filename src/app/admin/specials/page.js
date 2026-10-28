@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import SpecialEditor from "./components/SpecialEditor";
 import AdminTableCard from "../components/AdminTableCard";
-import { confirmDeleteToast } from "../components/ConfirmDeleteToast";
+import { StatusToggleButton, IconButton } from "../components/AdminTableButtons";
+import Button from "../components/ui/Button";
+import { confirmDialog } from "../components/ui/ConfirmDialog";
 import MonthNavigator from "../components/MonthNavigator";
 import { LastEditedBy } from "../components/PromoHistory";
 
@@ -65,22 +67,27 @@ export default function SpecialsAdminPage() {
   }
 
   async function handleDelete(id, title) {
-    confirmDeleteToast(title, async () => {
-      setDeletingId(id);
-      try {
-        const res = await fetch(`/api/special/${id}`, { method: "DELETE" });
-        if (res.status !== 204) {
-          const t = await res.text().catch(() => "");
-          throw new Error(t || `HTTP ${res.status}`);
-        }
-        setRows((prev) => prev.filter((x) => x.id !== id));
-        toast.success("Promotion deleted.");
-      } catch (e) {
-        toast.error(`Error while deleting: ${e.message || e}`);
-      } finally {
-        setDeletingId(null);
-      }
+    const ok = await confirmDialog({
+      title: "Delete this promotion?",
+      message: title,
+      confirmLabel: "Delete",
+      tone: "danger",
     });
+    if (!ok) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/special/${id}`, { method: "DELETE" });
+      if (res.status !== 204) {
+        const t = await res.text().catch(() => "");
+        throw new Error(t || `HTTP ${res.status}`);
+      }
+      setRows((prev) => prev.filter((x) => x.id !== id));
+      toast.success("Promotion deleted.");
+    } catch (e) {
+      toast.error(`Error while deleting: ${e.message || e}`);
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function handleToggle(id, next) {
@@ -145,12 +152,12 @@ export default function SpecialsAdminPage() {
   // lg: date | title | category | link | status | toggle | actions
   const rowGrid =
     "grid grid-cols-1 sm:grid-cols-[140px_1fr] " +
-    "lg:grid-cols-[140px_1fr_120px_1.5fr_120px_120px_160px]"; 
+    "lg:grid-cols-[140px_1.5fr_120px_1fr_120px_120px_160px]"; 
 
   return (
     <>
       {/* Naslov + opis */}
-      <div className="mb-2 flex justify-between align-center">
+      <div className="mb-2 flex items-start justify-between gap-3">
         <div className="mb-2">
           <h1 className="text-xl font-semibold">
             Backoffice - Special Promotions
@@ -160,15 +167,14 @@ export default function SpecialsAdminPage() {
           </p>
         </div>
 
-        <button
-          className="rounded-md bg-[var(--green-primary,#31A62E)] text-white text-sm font-medium px-3 py-2 hover:brightness-95"
+        <Button
           onClick={() => {
             setEditing(null);
             setShowNew((v) => !v);
           }}
         >
           {showNew ? "Close form" : "+ New"}
-        </button>
+        </Button>
       </div>
 
       <MonthNavigator
@@ -185,31 +191,21 @@ export default function SpecialsAdminPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {filtered.length > 0 && (
               <>
-                <button
-                  type="button"
-                  disabled={bulkLoading}
-                  onClick={() => handleBulkToggle(true)}
-                  className="px-3 py-1 text-xs rounded border border-green-600 text-green-700 bg-white hover:bg-green-50 disabled:opacity-50"
-                >
-                  Activate All ({filtered.length})
-                </button>
-                <button
-                  type="button"
-                  disabled={bulkLoading}
-                  onClick={() => handleBulkToggle(false)}
-                  className="px-3 py-1 text-xs rounded border border-neutral-400 text-neutral-600 bg-white hover:bg-neutral-50 disabled:opacity-50"
-                >
-                  Deactivate All ({filtered.length})
-                </button>
+                <Button size="sm" variant="secondary" disabled={bulkLoading} onClick={() => handleBulkToggle(true)}>
+                  Activate all ({filtered.length})
+                </Button>
+                <Button size="sm" variant="secondary" disabled={bulkLoading} onClick={() => handleBulkToggle(false)}>
+                  Deactivate all ({filtered.length})
+                </Button>
               </>
             )}
           </div>
         }
         columns={[
           { key: "date", label: "Date", width: "140px" },
-          { key: "title", label: "Title" },
+          { key: "title", label: "Title", width: "1.5fr" },
           { key: "category", label: "Category", width: "120px" }, 
-          { key: "link", label: "Link", width: "1.5fr" },
+          { key: "link", label: "Link", width: "1fr" },
           { key: "status", label: "Status", width: "120px" },
           { key: "toggle", label: "Toggle", width: "120px" },
           {
@@ -283,71 +279,29 @@ export default function SpecialsAdminPage() {
 
                     {/* Toggle */}
                     <div>
-                      <button
-                        type="button"
+                      <StatusToggleButton
+                        active={r.active}
                         onClick={() => handleToggle(r.id, !r.active)}
-                        disabled={loadingIds.has(r.id)}
-                        title={r.active ? "Deactivate" : "Activate"}
-                        aria-label={r.active ? "Deactivate" : "Activate"}
-                        className={`w-full h-8 text-xs rounded border uppercase cursor-pointer transition-opacity
-                          ${loadingIds.has(r.id) ? "opacity-50 cursor-not-allowed" : ""}
-                          ${
-                            r.active
-                              ? "border-[#4A4A4A] text-[#4A4A4A] bg-white hover:bg-neutral-50"
-                              : "border-green-600 text-green-700 bg-white hover:bg-green-50"
-                          }`}
-                      >
-                        {loadingIds.has(r.id) ? "..." : r.active ? "Deactivate" : "Activate"}
-                      </button>
+                        loading={loadingIds.has(r.id)}
+                      />
                     </div>
 
                     {/* Actions */}
                     <div className="flex items-center justify-end gap-2">
-                      {/* Edit */}
-                      <button
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-[#5F5F5F] hover:brightness-110"
+                      <IconButton
+                        variant="edit"
+                        title="Edit"
                         onClick={() => {
                           setShowNew(false);
                           setEditing(r);
                         }}
-                        title="Edit"
-                        aria-label="Edit"
-                      >
-                        <svg
-                          width="11"
-                          height="12"
-                          viewBox="0 0 11 12"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M10.1455 11.2559H0V10.1289H10.1455V11.2559ZM6.84375 0C6.99318 2.04314e-05 7.13651 0.0593917 7.24219 0.165039L8.83691 1.75879C8.88931 1.81113 8.93062 1.87397 8.95898 1.94238C8.98724 2.01069 9.00195 2.08428 9.00195 2.1582C9.00189 2.23211 8.98729 2.30574 8.95898 2.37402C8.93063 2.44227 8.8892 2.50441 8.83691 2.55664L2.3916 9.00195H0V6.61035L6.44531 0.165039C6.55101 0.0594016 6.69431 0 6.84375 0Z"
-                            fill="white"
-                          />
-                        </svg>
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-[#5F5F5F] hover:brightness-110 disabled:opacity-50"
-                        onClick={() =>
-                          handleDelete(r.id, r.title || "Promotion")
-                        }
-                        disabled={deletingId === r.id}
+                      />
+                      <IconButton
+                        variant="delete"
                         title="Delete"
-                        aria-label="Delete"
-                      >
-                        <svg
-                          width="10"
-                          height="14"
-                          viewBox="0 0 10 14"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M7.85742 3.11133C8.64301 3.11149 9.28613 3.81154 9.28613 4.66699V12.4443C9.28613 13.2998 8.64301 13.9998 7.85742 14H2.14258C1.35699 13.9998 0.713867 13.2998 0.713867 12.4443V4.66699C0.713867 3.81154 1.35699 3.11149 2.14258 3.11133H7.85742ZM6.49316 0C6.67878 9.41196e-05 6.86466 0.085663 6.99316 0.225586L7.5 0.777344H9.28613C9.6788 0.777592 10 1.12804 10 1.55566C9.99995 1.98324 9.67877 2.33276 9.28613 2.33301H0.713867C0.321234 2.33276 5.4316e-05 1.98324 0 1.55566C0 1.12804 0.3212 0.777592 0.713867 0.777344H2.5L3.00684 0.225586C3.13534 0.085663 3.32122 9.41927e-05 3.50684 0H6.49316Z"
-                            fill="white"
-                          />
-                        </svg>
-                      </button>
+                        disabled={deletingId === r.id}
+                        onClick={() => handleDelete(r.id, r.title || "Promotion")}
+                      />
                     </div>
                   </li>
                 ))}

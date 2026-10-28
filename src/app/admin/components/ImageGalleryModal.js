@@ -1,4 +1,5 @@
 "use client";
+import { confirmDialog } from "./ui/ConfirmDialog";
 
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -32,7 +33,13 @@ export default function ImageGalleryModal({ onSelect, onClose }) {
   }, []);
 
   async function handleDelete(filename) {
-    if (!window.confirm("Delete this image from gallery?")) return;
+    const ok = await confirmDialog({
+      title: "Delete this image?",
+      message: `${filename}\n\nPromotions that still use it will show a broken image.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
     setDeleting(filename);
     try {
       const res = await fetch("/api/images", {
@@ -103,7 +110,7 @@ export default function ImageGalleryModal({ onSelect, onClose }) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              className="px-3 py-1.5 rounded bg-[#17BB00] text-white text-xs font-semibold hover:brightness-110 disabled:opacity-60"
+              className="px-3 py-1.5 rounded bg-admin-primary text-white text-xs font-semibold hover:brightness-110 disabled:opacity-60"
             >
               {uploading ? "Uploading..." : "Upload new"}
             </button>

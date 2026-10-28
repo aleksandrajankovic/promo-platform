@@ -36,7 +36,7 @@ export default function SidebarNav({ className = "", topOffsetPx = 56 }) {
                     "flex items-center h-10 px-4 border-t border-neutral-200",
                     "hover:bg-neutral-50",
                     expanded
-                      ? "text-[#AC1C09] text-sm border-l-4 border-l-[#AC1C09]"
+                      ? "text-admin-brand text-sm border-l-4 border-l-admin-brand"
                       : "text-neutral-800 border-l-4 border-l-transparent",
                   ].join(" ")}
                 >
@@ -56,7 +56,7 @@ export default function SidebarNav({ className = "", topOffsetPx = 56 }) {
                               "flex items-center h-9 pl-8 pr-4 text-[12px]",
                               "hover:bg-neutral-50",
                               subActive
-                                ? "text-[#AC1C09] font-medium border-l-4 border-l-[#AC1C09]"
+                                ? "text-admin-brand font-medium border-l-4 border-l-admin-brand"
                                 : "text-neutral-600 border-l-4 border-l-transparent",
                             ].join(" ")}
                           >

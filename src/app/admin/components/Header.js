@@ -83,7 +83,7 @@ export default function AdminHeader() {
   const displayName = user?.name || user?.email?.split("@")[0] || "Admin";
 
   return (
-    <header className="h-14 bg-[#AC1C09] text-white flex items-center justify-between px-4 sm:px-6 shadow">
+    <header className="h-14 bg-admin-brand text-white flex items-center justify-between px-4 sm:px-6 shadow">
       <div className="font-semibold">BackOffice</div>
 
 

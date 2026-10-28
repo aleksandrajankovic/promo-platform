@@ -47,7 +47,7 @@ export default function EngagementTab({
                 className={[
                   "px-5 py-2.5 rounded-lg border-2 text-sm font-medium transition-colors",
                   leaderboardEnabled === opt.value
-                    ? "border-[#AC1C09] bg-red-50 text-[#AC1C09]"
+                    ? "border-admin-brand bg-red-50 text-admin-brand"
                     : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400",
                 ].join(" ")}
               >

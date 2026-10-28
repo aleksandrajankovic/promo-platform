@@ -8,7 +8,7 @@ export default function AdminTableCard({
   return (
     <div id={id} className="scroll-mt-6 bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden flex flex-col flex-1 min-h-0">
       {/* Crveni header */}
-      <div className="flex items-center justify-between bg-[#AC1C09] text-white px-4 py-3">
+      <div className="flex items-center justify-between bg-admin-brand text-white px-4 py-3">
         <div className="font-semibold">{title}</div>
         {headerRight && (
           <div className="flex items-center gap-2">{headerRight}</div>
