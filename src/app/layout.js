@@ -22,12 +22,12 @@ function resolveLocale(market, firstSegment) {
 
 
 const roboto = Roboto({
-  subsets: ["latin", "latin-ext", "cyrillic"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "700"],
   variable: "--font-roboto",
 });
 const robotoCondensed = Roboto_Condensed({
-  subsets: ["latin", "latin-ext", "cyrillic"],
+  subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "700"],
   variable: "--font-roboto-condensed",
 });
