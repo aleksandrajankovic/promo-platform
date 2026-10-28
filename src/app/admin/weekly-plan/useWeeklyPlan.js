@@ -43,20 +43,20 @@ export function useWeeklyPlan(year, month) {
         translations: payload.translations || null,
         defaultLang: payload.defaultLang,
         category: payload.category || "ALL",
+        ...("expectedUpdatedAt" in payload && { expectedUpdatedAt: payload.expectedUpdatedAt }),
       }),
     });
 
-    if (!res.ok) {
-      toast.error("Error saving");
-      return;
-    }
+    // greška se baca (ne samo toast) da editor ostane otvoren i izmene se ne izgube
+    if (res.status === 409) throw Object.assign(new Error("conflict"), { conflict: await res.json() });
+    if (!res.ok) throw new Error((await res.text().catch(() => "")) || "Error saving");
 
     const saved = await res.json();
     setRows((prev) => {
       const other = prev.filter((r) => r.weekday !== saved.weekday);
       return [...other, saved].sort((a, b) => a.weekday - b.weekday);
     });
-    toast.success("Success!");
+    return saved;
   }
 
   async function bulkToggle(active) {

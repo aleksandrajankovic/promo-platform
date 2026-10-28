@@ -6,6 +6,7 @@ import {
   categoryOptionsFor,
   WEEKDAY_LABELS,
   usePromoEditorForm,
+  askOverwrite,
   openCalendarPreview,
   EditorShell,
   Section,
@@ -55,11 +56,18 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
     }
 
     setSaving(true);
+    const payload = { ...contentPayload(), weekday: form.weekday };
     try {
-      await onSave({ ...contentPayload(), weekday: form.weekday });
+      try {
+        // dan je bio prazan (null) ili sa ovim updatedAt kad je editor otvoren
+        await onSave({ ...payload, expectedUpdatedAt: initial?.updatedAt ?? null });
+      } catch (e) {
+        if (!e.conflict || !(await askOverwrite(e.conflict))) throw e;
+        await onSave(payload);
+      }
       toast.success("Saved.");
     } catch (e) {
-      toast.error(`Error: ${e.message || "Saving failed."}`);
+      if (!e.conflict) toast.error(`Error: ${e.message || "Saving failed."}`);
     } finally {
       setSaving(false);
     }
@@ -82,6 +90,7 @@ export default function WeeklyEditor({ initial, onCancel, onSave }) {
       onSave={save}
       saving={saving}
       dirty={dirty}
+      ready={!!market}
     >
       <LanguageTabs market={market} activeLang={activeLang} onChange={setActiveLang} />
 

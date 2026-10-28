@@ -97,12 +97,17 @@ export default function WeeklyPlanAdmin() {
       setEditing(wd);
       return;
     }
-    await upsert({
-      ...existing,
-      year,
-      month,
-      active: !existing.active,
-    });
+    try {
+      await upsert({
+        ...existing,
+        year,
+        month,
+        active: !existing.active,
+      });
+      toast.success(existing.active ? "Promotion deactivated." : "Promotion activated.");
+    } catch (e) {
+      toast.error(`Error: ${e.message || "Saving failed."}`);
+    }
   }
 
   const rowGrid =

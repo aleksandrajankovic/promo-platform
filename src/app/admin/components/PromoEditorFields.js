@@ -184,6 +184,26 @@ export function usePromoEditorForm(seed, initial) {
   };
 }
 
+// 409 sa API-ja: neko je u međuvremenu snimio (ili obrisao) ovu promociju.
+// Pita da li da se njegove izmene prepišu; true = pošalji ponovo bez provere.
+export async function askOverwrite(conflict) {
+  if (conflict?.deleted) {
+    toast.error("This promotion was deleted by another admin while you were editing.");
+    return false;
+  }
+  const who = conflict?.updatedBy || "Another admin";
+  const when = conflict?.updatedAt
+    ? new Date(conflict.updatedAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : "";
+  return confirmDialog({
+    title: "Someone else changed this promotion",
+    message: `${who} saved changes${when ? ` at ${when}` : ""} while you were editing. Saving now will overwrite their changes.\n\nTo see their version instead, keep editing, then close the editor and open it again.`,
+    confirmLabel: "Overwrite",
+    cancelLabel: "Keep editing",
+    tone: "danger",
+  });
+}
+
 export function openCalendarPreview(year, month) {
   const y = year || new Date().getFullYear();
   const m = typeof month === "number" ? month : new Date().getMonth();
@@ -192,7 +212,9 @@ export function openCalendarPreview(year, month) {
 
 // Editor kao panel sa desne strane preko liste — nema skrolovanja do forme
 // ispod tabele, a zaglavlje (status, Save/Cancel) ostaje zalepljeno na vrhu.
-export function EditorShell({ heading, active, onToggleActive, onPreview, onCancel, onSave, saving, dirty = false, children }) {
+// ready=false dok se ne učitaju jezici tržišta — polja se tada ne prikazuju,
+// inače bi tekst otkucan u tom trenutku otišao pod pogrešan jezik
+export function EditorShell({ heading, active, onToggleActive, onPreview, onCancel, onSave, saving, dirty = false, ready = true, children }) {
   // zatvaranje sa nesnimljenim izmenama traži potvrdu (Cancel, Esc)
   async function requestClose() {
     if (dirty) {
@@ -256,13 +278,15 @@ export function EditorShell({ heading, active, onToggleActive, onPreview, onCanc
             <Button size="sm" variant="secondary" onClick={requestClose}>
               Cancel
             </Button>
-            <Button size="sm" onClick={onSave} disabled={saving}>
+            <Button size="sm" onClick={onSave} disabled={saving || !ready}>
               {saving ? "Saving..." : dirty ? "Save •" : "Save"}
             </Button>
           </div>
         </div>
 
-        <div className="space-y-4 p-5">{children}</div>
+        <div className="space-y-4 p-5">
+          {ready ? children : <p className="py-10 text-center text-sm text-neutral-500">Loading…</p>}
+        </div>
       </div>
     </div>
   );
@@ -491,6 +515,7 @@ export function DescriptionField({ label, activeLang, currentT, setTranslationFi
         <RichEditor
           key={activeLang} // remount kad promeniš jezik
           initialJSON={currentT.rich || null}
+          initialHTML={currentT.richHtml || ""}
           placeholder={placeholder}
           onChange={({ json, html }) => {
             setTranslationField(activeLang, "rich", json);

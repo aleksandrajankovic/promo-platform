@@ -31,7 +31,7 @@ export function StatusToggleButton({
 }
 
 export function IconButton({
-  variant, // "edit" | "add" | "delete"
+  variant, // "edit" | "add" | "delete" | "duplicate"
   onClick,
   title,
   disabled = false,
@@ -73,6 +73,14 @@ export function IconButton({
             strokeWidth="2"
             strokeLinecap="round"
           />
+        </svg>
+      )}
+
+      {variant === "duplicate" && (
+        // dva preklopljena lista
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+          <rect x="8" y="8" width="12" height="12" rx="2" />
+          <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
         </svg>
       )}
 

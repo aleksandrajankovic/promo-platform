@@ -15,7 +15,8 @@ export default function SpecialsAdminPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [showNew, setShowNew] = useState(false);
+  // podaci za editor nove promocije: prazan nacrt za "+ New" ili kopija za "Duplicate"
+  const [draft, setDraft] = useState(null);
   const [editing, setEditing] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [loadingIds, setLoadingIds] = useState(new Set());
@@ -60,6 +61,33 @@ export default function SpecialsAdminPage() {
     const isCurrent = now.getFullYear() === filterYear && now.getMonth() === filterMonth;
     return { year: filterYear, month: filterMonth, day: isCurrent ? now.getDate() : 1 };
   }, [filterYear, filterMonth]);
+
+  // Kopija promocije kao nova, neaktivna, sa datumom sledećeg dana — admin
+  // menja datum/tekst i snima (POST, nov red; istorija beleži "Created").
+  function duplicate(r) {
+    const next = new Date(r.year, r.month, r.day + 1);
+    setEditing(null);
+    setDraft({
+      key: `dup-${r.id}-${Date.now()}`,
+      duplicateOf: r.title || "promotion",
+      year: next.getFullYear(),
+      month: next.getMonth(),
+      day: next.getDate(),
+      active: false,
+      icon: r.icon,
+      buttonColor: r.buttonColor,
+      scratch: r.scratch,
+      flipCard: r.flipCard,
+      category: r.category,
+      knockoutPhase: r.knockoutPhase,
+      translations: r.translations,
+      title: r.title,
+      button: r.button,
+      link: r.link,
+      rich: r.rich,
+      richHtml: r.richHtml,
+    });
+  }
 
   function selectMonth(y, m) {
     setFilterYear(y);
@@ -170,10 +198,10 @@ export default function SpecialsAdminPage() {
         <Button
           onClick={() => {
             setEditing(null);
-            setShowNew((v) => !v);
+            setDraft((d) => (d ? null : { ...newInitial, key: `new-${filterYear}-${filterMonth}` }));
           }}
         >
-          {showNew ? "Close form" : "+ New"}
+          {draft ? "Close form" : "+ New"}
         </Button>
       </div>
 
@@ -292,10 +320,11 @@ export default function SpecialsAdminPage() {
                         variant="edit"
                         title="Edit"
                         onClick={() => {
-                          setShowNew(false);
+                          setDraft(null);
                           setEditing(r);
                         }}
                       />
+                      <IconButton variant="duplicate" title="Duplicate" onClick={() => duplicate(r)} />
                       <IconButton
                         variant="delete"
                         title="Delete"
@@ -328,12 +357,12 @@ export default function SpecialsAdminPage() {
         </div>
       )}
 
-      {showNew && !editing && (
+      {draft && !editing && (
         <div className="mt-6">
           <SpecialEditor
-            key={`new-${filterYear}-${filterMonth}`}
-            initial={newInitial}
-            onCancel={() => setShowNew(false)}
+            key={draft.key}
+            initial={draft}
+            onCancel={() => setDraft(null)}
             onSaved={(created) => {
               setRows((prev) => {
                 const next = [...prev, created];
@@ -343,7 +372,7 @@ export default function SpecialsAdminPage() {
                 );
                 return next;
               });
-              setShowNew(false);
+              setDraft(null);
             }}
           />
         </div>

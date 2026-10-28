@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import {
   categoryOptionsFor,
   usePromoEditorForm,
+  askOverwrite,
   openCalendarPreview,
   EditorShell,
   Section,
@@ -126,12 +127,15 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
         day: form.day,
         knockoutPhase: form.knockoutPhase || null,
       };
+      const send = (body) =>
+        fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      // izmena: server odbija upis ako je neko snimio posle našeg učitavanja
+      let res = await send(isEdit && initial?.updatedAt ? { ...payload, expectedUpdatedAt: initial.updatedAt } : payload);
+      if (res.status === 409) {
+        if (!(await askOverwrite(await res.json()))) return;
+        res = await send(payload);
+      }
 
       if (!res.ok) throw new Error(await res.text());
       const saved = await res.json();
@@ -149,7 +153,11 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
     <EditorShell
       heading={
         <div className="text-base font-semibold text-neutral-900">
-          {form.id ? "Edit Special Promotion" : "New Special Promotion"}
+          {form.id
+            ? "Edit Special Promotion"
+            : initial?.duplicateOf
+              ? `Duplicate of “${initial.duplicateOf}”`
+              : "New Special Promotion"}
         </div>
       }
       active={form.active}
@@ -159,6 +167,7 @@ export default function SpecialEditor({ initial, onCancel, onSaved }) {
       onSave={save}
       saving={saving}
       dirty={dirty}
+      ready={!!market}
     >
       <LanguageTabs market={market} activeLang={activeLang} onChange={setActiveLang} />
 

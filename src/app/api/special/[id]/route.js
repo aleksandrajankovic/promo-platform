@@ -6,6 +6,7 @@ import prisma from "@/lib/db";
 import { requireAdminMarketOrResponse } from "@/lib/marketScope";
 import { prepareSpecialData } from "@/lib/calendar/specialPayload";
 import { AUTHOR_INCLUDE, auditEntry, diffPromo, specialLabel, updateAction } from "@/lib/audit";
+import { EditConflictError, conflictResponse, parseExpectedUpdatedAt } from "@/lib/editConflict";
 
 // Postojeći red mora pripadati market-u iz sesije — u suprotnom admin jednog
 // tržišta mogao bi da menja/briše promocije drugog tržišta pogađanjem id-a.
@@ -31,23 +32,39 @@ export async function PUT(req, { params }) {
   const { data, error } = await prepareSpecialData(body, market);
   if (error) return error;
 
+  const expected = parseExpectedUpdatedAt(body);
+  if (expected === null) return conflictResponse(owned); // video je da red ne postoji, a postoji
+
   const changes = diffPromo(owned, data);
-  const row = await prisma.$transaction(async (tx) => {
-    const updated = await tx.specialPromotion.update({
-      where: { id: specialId },
-      data: { ...data, updatedById: session.adminId },
+  let row;
+  try {
+    row = await prisma.$transaction(async (tx) => {
+      // uslov na updatedAt u samom upisu: ako je neko u međuvremenu snimio,
+      // count je 0 i ništa se ne menja (bez prozora između provere i upisa)
+      const { count } = await tx.specialPromotion.updateMany({
+        where: { id: specialId, marketId: market.id, ...(expected && { updatedAt: expected }) },
+        data: { ...data, updatedById: session.adminId },
+      });
+      if (count === 0) throw new EditConflictError();
+      const updated = await tx.specialPromotion.findUnique({ where: { id: specialId }, include: AUTHOR_INCLUDE });
+      if (Object.keys(changes).length) {
+        await tx.promoAuditLog.create({
+          data: auditEntry({
+            session, marketId: market.id, entity: "special", entityId: specialId,
+            action: updateAction(changes), label: specialLabel(updated), changes,
+          }),
+        });
+      }
+      return updated;
+    });
+  } catch (err) {
+    if (!(err instanceof EditConflictError)) throw err;
+    const current = await prisma.specialPromotion.findFirst({
+      where: { id: specialId, marketId: market.id },
       include: AUTHOR_INCLUDE,
     });
-    if (Object.keys(changes).length) {
-      await tx.promoAuditLog.create({
-        data: auditEntry({
-          session, marketId: market.id, entity: "special", entityId: specialId,
-          action: updateAction(changes), label: specialLabel(updated), changes,
-        }),
-      });
-    }
-    return updated;
-  });
+    return conflictResponse(current);
+  }
 
   revalidateTag("calendar", { expire: 0 });
   return Response.json(row);

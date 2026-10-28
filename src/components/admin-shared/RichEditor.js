@@ -235,6 +235,7 @@ function ColorPicker({ activeColor, setColor }) {
 
 export default function RichEditor({
   initialJSON = null,
+  initialHTML = "",
   placeholder = "Write content…",
   onChange,
 }) {
@@ -259,7 +260,9 @@ export default function RichEditor({
       TextAlign.configure({ types: ["heading", "paragraph", "listItem"] }),
       Placeholder.configure({ placeholder }),
     ],
-    content: initialJSON || "",
+    // JSON je izvorni format editora; HTML je rezerva za opise bez JSON-a
+    // (inače bi editor krenuo prazan i snimanje bi obrisalo opis)
+    content: initialJSON || initialHTML || "",
     onUpdate: ({ editor }) =>
       onChange?.({ json: editor.getJSON(), html: editor.getHTML() }),
     editorProps: {

@@ -9,6 +9,7 @@ import { sanitizeLink } from "@/lib/validate";
 import { getAllowedWeeklyCategories } from "@/lib/calendar/promoCategoryStyles";
 import { resolveMonthTheme } from "@/lib/calendar/monthTheme";
 import { AUTHOR_INCLUDE, auditEntry, diffPromo, updateAction, weeklyLabel } from "@/lib/audit";
+import { EditConflictError, conflictResponse, parseExpectedUpdatedAt } from "@/lib/editConflict";
 
 // GET /api/weekly-plan?year=YYYY&month=MM — u praksi je konzumuje samo admin UI
 // (autentifikovan), zato ide kroz isti marketScope kao ostale admin rute.
@@ -125,37 +126,53 @@ export async function PUT(req) {
   const where = { marketId_year_month_weekday: { marketId: market.id, year, month, weekday } };
   const existing = await prisma.weeklyPlan.findUnique({ where });
 
-  const row = await prisma.$transaction(async (tx) => {
-    if (!existing) {
-      const created = await tx.weeklyPlan.create({
-        data: { ...data, createdById: session.adminId, updatedById: session.adminId },
-        include: AUTHOR_INCLUDE,
-      });
-      await tx.promoAuditLog.create({
-        data: auditEntry({
-          session, marketId: market.id, entity: "weekly", entityId: created.id,
-          action: "create", label: weeklyLabel(created),
-        }),
-      });
-      return created;
-    }
+  // editor je video stanje dana (prazan ili sa updatedAt); ako se razlikuje
+  // od trenutnog, neko je u međuvremenu snimio/obrisao — 409, bez upisa
+  const expected = parseExpectedUpdatedAt(body);
+  const sawEmpty = expected === null;
+  if (expected !== undefined && (sawEmpty ? !!existing : !existing)) {
+    return conflictResponse(existing && (await prisma.weeklyPlan.findUnique({ where, include: AUTHOR_INCLUDE })));
+  }
 
-    const changes = diffPromo(existing, data);
-    const updated = await tx.weeklyPlan.update({
-      where,
-      data: { ...data, updatedById: session.adminId },
-      include: AUTHOR_INCLUDE,
-    });
-    if (Object.keys(changes).length) {
-      await tx.promoAuditLog.create({
-        data: auditEntry({
-          session, marketId: market.id, entity: "weekly", entityId: updated.id,
-          action: updateAction(changes), label: weeklyLabel(updated), changes,
-        }),
+  let row;
+  try {
+    row = await prisma.$transaction(async (tx) => {
+      if (!existing) {
+        const created = await tx.weeklyPlan.create({
+          data: { ...data, createdById: session.adminId, updatedById: session.adminId },
+          include: AUTHOR_INCLUDE,
+        });
+        await tx.promoAuditLog.create({
+          data: auditEntry({
+            session, marketId: market.id, entity: "weekly", entityId: created.id,
+            action: "create", label: weeklyLabel(created),
+          }),
+        });
+        return created;
+      }
+
+      const changes = diffPromo(existing, data);
+      const { count } = await tx.weeklyPlan.updateMany({
+        where: { id: existing.id, ...(expected && { updatedAt: expected }) },
+        data: { ...data, updatedById: session.adminId },
       });
-    }
-    return updated;
-  });
+      if (count === 0) throw new EditConflictError();
+      const updated = await tx.weeklyPlan.findUnique({ where: { id: existing.id }, include: AUTHOR_INCLUDE });
+      if (Object.keys(changes).length) {
+        await tx.promoAuditLog.create({
+          data: auditEntry({
+            session, marketId: market.id, entity: "weekly", entityId: updated.id,
+            action: updateAction(changes), label: weeklyLabel(updated), changes,
+          }),
+        });
+      }
+      return updated;
+    });
+  } catch (err) {
+    // istovremeno kreiranje istog dana pada na unique ograničenju (P2002)
+    if (!(err instanceof EditConflictError) && err?.code !== "P2002") throw err;
+    return conflictResponse(await prisma.weeklyPlan.findUnique({ where, include: AUTHOR_INCLUDE }));
+  }
 
   revalidateTag("calendar", { expire: 0 });
   return Response.json(row);
