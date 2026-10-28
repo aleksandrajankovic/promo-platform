@@ -178,7 +178,6 @@ export default function CalendarStylePage() {
               logoUrl={logoUrl} setLogoUrl={setLogoUrl}
               titleSr={titleForLang} setTitleSr={setTitleForLang} lang={lang}
               defaultLang={market?.defaultLocale || "sr"}
-              titlePlaceholder={tr(lang, "calendarTitle")}
               theme={theme} setTheme={setTheme}
               calendarPosition={calendarPosition} setCalendarPosition={setCalendarPosition}
               bgUrl={bgUrl} setBgUrl={setBgUrl}

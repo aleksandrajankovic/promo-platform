@@ -61,7 +61,7 @@ function PositionIcon({ value }) {
 
 export default function BrandingLayoutTab({
   logoUrl, setLogoUrl,
-  titleSr, setTitleSr, lang, defaultLang = "sr", titlePlaceholder = "",
+  titleSr, setTitleSr, lang, defaultLang = "sr",
   theme, setTheme,
   calendarPosition, setCalendarPosition,
   bgUrl, setBgUrl,
@@ -213,17 +213,21 @@ export default function BrandingLayoutTab({
       <AdminTableCard title="Calendar Title">
         <div className="p-4 space-y-4">
           <p className="text-sm text-neutral-500">
-            Global default heading shown above the calendar ({lang.toUpperCase()}). Leave empty for &quot;{titlePlaceholder}&quot;.
+            Global heading shown above the calendar ({lang.toUpperCase()}). Leave empty to show no heading.
           </p>
           <input
             className="w-full border border-[#D0D0D0] rounded px-2.5 py-2 text-sm"
             value={titleSr}
             onChange={(e) => setTitleSr(e.target.value)}
-            placeholder={titlePlaceholder}
+            placeholder="No heading"
           />
           <div className="pt-2 border-t border-neutral-100">
             <p className="text-xs text-neutral-400 mb-1">Preview ({lang.toUpperCase()}):</p>
-            <p className="text-2xl font-extrabold tracking-tight text-neutral-800">{titleSr || titlePlaceholder}</p>
+            {titleSr ? (
+              <p className="text-2xl font-extrabold tracking-tight text-neutral-800">{titleSr}</p>
+            ) : (
+              <p className="text-sm italic text-neutral-400">No heading is shown above the calendar.</p>
+            )}
           </div>
 
           <div className="mt-5 pt-4 border-t border-neutral-100">
@@ -239,7 +243,7 @@ export default function BrandingLayoutTab({
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
               value={monthTitle}
               onChange={(e) => setMonthTitle(e.target.value)}
-              placeholder={`Leave empty to use the global title ("${titleSr || titlePlaceholder}")`}
+              placeholder={titleSr ? `Leave empty to use the global title ("${titleSr}")` : "Leave empty — no heading (global title is empty)"}
             />
           </div>
         </div>

@@ -32,6 +32,7 @@ export default function CalendarPageView({
   bgImageUrlMobile,
   pos,
   calendarTitle,
+  seoHeading,
   topOffset,
   topOffsetMobile,
   dayFrom,
@@ -105,17 +106,21 @@ export default function CalendarPageView({
           <div
             className={`relative z-10 w-full max-w-6xl px-4 sm:px-6 md:px-10 lg:px-16 pt-14 pb-4 md:pt-16 md:pb-0 ${innerMargin}`}
           >
-            <h1
-              className={`${
-                theme === "football"
-                  ? `text-[28px] md:text-[44px] font-black tracking-[0.06em] ${exo2Black.className}`
-                  : "text-3xl md:text-5xl font-extrabold tracking-tight"
-              } text-white text-center ${headingAlign} ${
-                theme === "football" ? "mt-6 mb-4 [@media(min-height:800px)]:mb-10 md:mt-8 md:mb-10" : "my-[30px]"
-              }`}
-            >
-              {calendarTitle}
-            </h1>
+            {/* bez upisanog naslova: nevidljiv h1 (SEO, čitači ekrana) */}
+            {!calendarTitle && <h1 className="sr-only">{seoHeading}</h1>}
+            {calendarTitle && (
+              <h1
+                className={`${
+                  theme === "football"
+                    ? `text-[28px] md:text-[44px] font-black tracking-[0.06em] ${exo2Black.className}`
+                    : "text-3xl md:text-5xl font-extrabold tracking-tight"
+                } text-white text-center ${headingAlign} ${
+                  theme === "football" ? "mt-6 mb-4 [@media(min-height:800px)]:mb-10 md:mt-8 md:mb-10" : "my-[30px]"
+                }`}
+              >
+                {calendarTitle}
+              </h1>
+            )}
 
             <CountdownTimer targetIso={countdownTargetIso} label={countdownLabel} lang={lang} />
 

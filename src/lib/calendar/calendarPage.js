@@ -307,14 +307,17 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   const dayFrom = monthBg.dayFrom || null;
   const dayTo = monthBg.dayTo || null;
 
-  // naslov kalendara po jeziku: naslov meseca > globalni naslov > rečnik.
+  // naslov kalendara po jeziku: naslov meseca > globalni naslov. Ako admin
+  // nije upisao ništa, naslov se ne prikazuje (calendarTitle = null) — kao u
+  // starom RS kalendaru; seoHeading ostaje kao nevidljiv h1 za SEO/čitače.
   // titleSr je stari naslov meseca (važi za podrazumevani jezik tržišta).
   const defaultLang = market.defaultLocale || "sr";
   const monthTitles = { ...(monthBg.titleSr ? { [defaultLang]: monthBg.titleSr } : {}), ...(monthBg.titles || {}) };
   const calendarTitle =
     pickLocalized(monthTitles, resolvedLang, defaultLang) ||
     pickLocalized(calendarSettings?.calendarTitle, resolvedLang, defaultLang) ||
-    t(resolvedLang, "calendarTitle");
+    null;
+  const seoHeading = t(resolvedLang, "calendarTitle");
 
   // tema kalendara — per-month override > global default
   const theme = monthBg.theme || calendarSettings?.theme || "default";
@@ -344,6 +347,7 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
     bgImageUrlMobile,
     pos,
     calendarTitle,
+    seoHeading,
     topOffset,
     topOffsetMobile,
     dayFrom,
