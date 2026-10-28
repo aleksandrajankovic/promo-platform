@@ -1,5 +1,6 @@
 // src/lib/calendarGridHelpers.js
 import { buildPromoUrlISO, slugify } from "@/lib/calendar/slug";
+import { t } from "@/lib/i18n/messages";
 
 function asArray(x) {
   if (Array.isArray(x)) return x;
@@ -139,7 +140,7 @@ export function buildCalendarData({
     const richHtml = promo?.richHtml || null;
     const link = promo?.link || "#";
     const button =
-      promo?.button || (lang === "pt" ? "Saiba mais" : "Learn more");
+      promo?.button || t(lang, "learnMore");
     const buttonColor = promo?.buttonColor || "green";
 
     daysPayload.push({

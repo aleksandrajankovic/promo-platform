@@ -1,5 +1,6 @@
 // src/lib/scratch/renderScratchModal.js
 import { getExclusiveBadgeLabel } from "@/lib/calendar/promoCategoryStyles";
+import { t } from "@/lib/i18n/messages";
 
 export function extractFirstImg(richHtml = "") {
   if (!richHtml) return { imgSrc: "", restHtml: "" };
@@ -36,9 +37,8 @@ export function renderScratchModal({
   const isYellow = buttonColor === "yellow";
   const canOpen = link && link !== "#";
 
-  const hintText = lang === "sr" ? "SPREMAN ZA IZNENAĐENJE?" : "Ready for a surprise?";
-  const hintText1 =
-    lang === "sr" ? "Ogrebi i otkrij današnju specijalnu promociju" : "Scratch to reveal today's offer";
+  const hintText = t(lang, "scratchHint");
+  const hintText1 = t(lang, "scratchTitle");
 
   const safeKey = String(shareKey || "default");
 
@@ -129,7 +129,7 @@ export function renderScratchModal({
         class="text-[#FACC01] text-sm text-center uppercase"
       >${hintText1}</div>
       <div id="flip-hint" class="mt-1 text-center text-xs text-white/70 uppercase tracking-[0.1em] opacity-0 transition-opacity duration-300">
-        ${lang === "sr" ? "Dodirni za detalje" : "Tap for details"}
+        ${t(lang, "tapForDetails")}
       </div>
     </div>
     `;

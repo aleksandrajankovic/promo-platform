@@ -1,4 +1,5 @@
 // src/lib/promoCategoryStyles.js
+import { categoryLabel, t } from "@/lib/i18n/messages";
 
 export const CATEGORY_GRADIENT_CLASSES = {
   SPORT: "bg-[linear-gradient(110.5deg,_#234919_2.58%,_#000000_92.56%)]",
@@ -17,33 +18,14 @@ export function getCategoryGradient(category) {
   return CATEGORY_GRADIENT_CLASSES[key] || CATEGORY_GRADIENT_CLASSES.ALL;
 }
 
-export function getCategoryLabel(category) {
-  switch (category) {
-    case "SPORT":
-      return "Sport";
-    case "CASINO":
-      return "Casino";
-    case "MISSIONS":
-      return "Missions";
-    case "GOLD":
-      return "Zlatna lopta";
-    case "QUARTER_FINAL":
-      return "Četvrtfinale";
-    case "SEMI_FINAL":
-      return "Polufinale";
-    case "FINAL":
-      return "Finale";
-    case "ALL":
-    default:
-      return "All";
-  }
+// Natpisi po jeziku tržišta — tekst je u src/lib/i18n/messages.js
+export function getCategoryLabel(category, lang = "sr") {
+  return categoryLabel(lang, category || "ALL");
 }
 
 // Naslov "Ekskluzivna promocija" badge-a u modalu, samo za GOLD kategoriju
 export function getExclusiveBadgeLabel(category, lang = "sr") {
-  return category === "GOLD"
-    ? (lang === "sr" ? "Ekskluzivna promocija" : "Exclusive promotion")
-    : "";
+  return category === "GOLD" ? t(lang, "exclusivePromo") : "";
 }
 
 const FOOTBALL_ONLY_CATEGORIES = ["GOLD", "QUARTER_FINAL", "SEMI_FINAL", "FINAL"];
@@ -75,11 +57,11 @@ export function getKnockoutRingClass(category) {
   }
 }
 
-export function getKnockoutBadgeLabel(category) {
+export function getKnockoutBadgeLabel(category, lang = "sr") {
   switch (category) {
     case "QUARTER_FINAL": return "1/4";
     case "SEMI_FINAL":    return "1/2";
-    case "FINAL":         return "FINALE";
+    case "FINAL":         return t(lang, "knockoutFinal");
     default:              return "";
   }
 }

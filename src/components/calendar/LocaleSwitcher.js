@@ -1,6 +1,7 @@
 // src/components/calendar/LocaleSwitcher.js
 "use client";
 
+import { t } from "@/lib/i18n/messages";
 import { useState, useRef, useEffect } from "react";
 import { localeMonthHref } from "@/lib/calendar/calendarUrls";
 
@@ -36,7 +37,7 @@ export default function LocaleSwitcher({ year, month, locale, defaultLocale, loc
         className={`flex items-center justify-center w-[38px] h-[38px] bg-[#284755]/50 border border-[#396F85]/40 shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-sm hover:bg-[#284755]/70 transition ${
           open ? "rounded-t-[6px] rounded-b-none" : "rounded-[6px]"
         }`}
-        aria-label="Change language"
+        aria-label={t(locale, "changeLanguage")}
       >
         {activeMeta.flag ? (
           <img src={activeMeta.flag} alt={activeMeta.alt} className="w-[22px] h-[22px] rounded-[4px] object-cover" />

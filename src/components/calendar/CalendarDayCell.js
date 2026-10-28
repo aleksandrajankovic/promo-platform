@@ -1,4 +1,5 @@
 // src/components/CalendarDayCell.js
+import { t } from "@/lib/i18n/messages";
 import { rowdies } from "@/app/fonts";
 import {
   getCategoryGradient,
@@ -21,7 +22,7 @@ const dayNumberClass = `
 export default function CalendarDayCell({ cell, lang, adminPreview }) {
   const locked = cell.isLocked && !adminPreview;
   const category = cell.category || "ALL";
-  const categoryLabel = getCategoryLabel(category);
+  const categoryLabel = getCategoryLabel(category, lang);
   const gradientClass =  getCategoryGradient(category);
 
   return (
@@ -47,8 +48,8 @@ export default function CalendarDayCell({ cell, lang, adminPreview }) {
         `}
         aria-label={
           cell.hasPromo
-            ? `Day ${cell.day} – ${categoryLabel}`
-            : `Day ${cell.day}`
+            ? `${t(lang, "day")} ${cell.day} – ${categoryLabel}`
+            : `${t(lang, "day")} ${cell.day}`
         }
       >
         {/* broj dana */}

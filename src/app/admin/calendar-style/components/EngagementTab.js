@@ -4,7 +4,7 @@ import AdminTableCard from "../../components/AdminTableCard";
 
 export default function EngagementTab({
   countdownTargetIso, setCountdownTargetIso,
-  countdownLabel, setCountdownLabel,
+  countdownLabel, setCountdownLabel, countdownPlaceholder, lang,
   leaderboardEnabled, setLeaderboardEnabled,
   leaderboardFeedUrl, setLeaderboardFeedUrl,
 }) {
@@ -22,12 +22,12 @@ export default function EngagementTab({
             />
           </label>
           <label className="block">
-            <span className="mb-1 inline-block text-sm text-neutral-600">Label</span>
+            <span className="mb-1 inline-block text-sm text-neutral-600">Label ({lang?.toUpperCase()})</span>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-2 text-sm"
               value={countdownLabel}
               onChange={(e) => setCountdownLabel(e.target.value)}
-              placeholder="Kalendar se otvara za"
+              placeholder={`Leave empty for the default: "${countdownPlaceholder}"`}
             />
           </label>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { daysLabel, t } from "@/lib/i18n/messages";
 
 function calcRemaining(target) {
   const diff = target - Date.now();
@@ -17,7 +18,7 @@ function pad(n) {
   return String(n).padStart(2, "0");
 }
 
-export default function CountdownTimer({ targetIso, label = "Do prve promocije" }) {
+export default function CountdownTimer({ targetIso, label, lang = "sr" }) {
   const target = new Date(targetIso).getTime();
   const [remaining, setRemaining] = useState(() => calcRemaining(target));
 
@@ -32,15 +33,15 @@ export default function CountdownTimer({ targetIso, label = "Do prve promocije" 
   if (!remaining) return null;
 
   const units = [
-    { value: remaining.days,    label: remaining.days === 1 ? "dan" : "dana" },
-    { value: remaining.hours,   label: "sati" },
-    { value: remaining.minutes, label: "min" },
-    { value: remaining.seconds, label: "sek" },
+    { value: remaining.days,    label: daysLabel(lang, remaining.days) },
+    { value: remaining.hours,   label: t(lang, "hours") },
+    { value: remaining.minutes, label: t(lang, "minutes") },
+    { value: remaining.seconds, label: t(lang, "seconds") },
   ];
 
   return (
     <div className="flex flex-col items-center gap-3 mb-6 md:mb-8">
-      <p className="text-white/50 text-[11px] uppercase tracking-[0.18em]">{label}</p>
+      <p className="text-white/50 text-[11px] uppercase tracking-[0.18em]">{label || t(lang, "countdownDefault")}</p>
 
       <div
         className="flex items-center gap-2 px-5 py-3 rounded-2xl"

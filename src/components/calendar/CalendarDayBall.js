@@ -9,7 +9,7 @@ import {
 import PromoBallIcon from "@/components/calendar/promo/PromoBallIcon";
 import LockOverlay from "@/components/calendar/promo/LockOverlay";
 
-export default function CalendarDayBall({ cell, adminPreview }) {
+export default function CalendarDayBall({ cell, adminPreview, lang = "sr" }) {
   const locked = cell.isLocked && !adminPreview && !cell.isToday;
   const isToday = cell.isToday;
   const isGold = cell.category === "GOLD";
@@ -38,7 +38,7 @@ export default function CalendarDayBall({ cell, adminPreview }) {
         {/* knockout badge — top-right corner, visible even when locked */}
         {knockoutPhase && (
           <span className={`knockout-badge ${getKnockoutBadgeClass(knockoutPhase)}`}>
-            {getKnockoutBadgeLabel(knockoutPhase)}
+            {getKnockoutBadgeLabel(knockoutPhase, lang)}
           </span>
         )}
 

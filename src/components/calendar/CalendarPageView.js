@@ -9,6 +9,7 @@ import CountdownTimer from "@/components/calendar/CountdownTimer";
 import CalendarJsonLd from "@/components/calendar/CalendarJsonLd";
 import LocaleSwitcher from "@/components/calendar/LocaleSwitcher";
 import { bebasNeue, exo2Black } from "@/app/fonts";
+import { t } from "@/lib/i18n/messages";
 
 export default function CalendarPageView({
   year,
@@ -69,7 +70,7 @@ export default function CalendarPageView({
             href={mainSiteUrl}
             target="_blank"
             rel="noreferrer"
-            aria-label="Meridianbet Calendar main site"
+            aria-label={t(lang, "mainSite")}
             className="pointer-events-auto"
           >
             <img src={logoUrl} alt="Meridianbet" className="h-8 md:h-10 w-auto" />
@@ -79,7 +80,7 @@ export default function CalendarPageView({
         <div className="absolute right-4 top-4 md:top-6 z-20 flex items-center gap-2">
           {leaderboard?.enabled && (
             <div className="hidden md:block">
-              <LeaderboardButton feedUrl={leaderboard.feedUrl} />
+              <LeaderboardButton feedUrl={leaderboard.feedUrl} lang={lang} />
             </div>
           )}
           {locales?.length > 1 && (
@@ -116,11 +117,11 @@ export default function CalendarPageView({
               {calendarTitle}
             </h1>
 
-            <CountdownTimer targetIso={countdownTargetIso} label={countdownLabel} />
+            <CountdownTimer targetIso={countdownTargetIso} label={countdownLabel} lang={lang} />
 
             {leaderboard?.enabled && (
               <div className="md:hidden flex justify-center mb-4">
-                <LeaderboardButton feedUrl={leaderboard.feedUrl} />
+                <LeaderboardButton feedUrl={leaderboard.feedUrl} lang={lang} />
               </div>
             )}
 
@@ -194,6 +195,7 @@ export default function CalendarPageView({
                 scratchCursorUrl={scratchCursorUrl}
                 dayFrom={dayFrom}
                 dayTo={dayTo}
+                defaultLocale={defaultLocale}
               />
             </div>
 

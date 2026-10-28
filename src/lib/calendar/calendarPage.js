@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import { localeMonthHref } from "@/lib/calendar/calendarUrls";
 import { withRetry } from "@/lib/withRetry";
+import { monthName as localizedMonthName, pickLocalized, t } from "@/lib/i18n/messages";
 
 export * from "@/lib/calendar/calendarUrls";
 
@@ -23,31 +24,6 @@ export function getMainSiteUrl(market) {
   return `https://${market.domain.replace(/^calendar\./, "")}`;
 }
 
-export const MONTH_NAMES_SR = [
-  "Januar", "Februar", "Mart", "April", "Maj", "Jun",
-  "Jul", "Avgust", "Septembar", "Oktobar", "Novembar", "Decembar",
-];
-
-// Isti fallback za en-jezička tržišta kad admin nije popunio seoMeta/naslov —
-// bez ovoga TZ/BR/BA/COM dobijaju srpski meta title/description kad seoMeta
-// nije podešen za njihov jezik, iako je hreflang/html-lang ispravno "en".
-const MONTH_NAMES_EN = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-function localizedMonthMeta(lang, monthName, year) {
-  if (lang === "en") {
-    return {
-      title: `Promo Calendar ${monthName} ${year} | Meridianbet`,
-      description: `Discover daily promotions for ${monthName} ${year}. Claim exclusive rewards with the Meridianbet Promo Calendar.`,
-    };
-  }
-  return {
-    title: `Kalendar Promocija ${monthName} ${year} | Meridianbet`,
-    description: `Otkrijte dnevne promocije za ${monthName} ${year}. Iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.`,
-  };
-}
 
 // Javni kalendar ne sme da ide u bazu za svakog posetioca. Sve što stranica
 // čita keširano je između zahteva (tag "calendar"); svaki admin snimak zove
@@ -205,14 +181,14 @@ export async function buildCalendarMetadata(market, year, month, lang) {
   const resolvedLang = lang || defaultLocale;
   const canonical = `${BASE_URL}${localeMonthHref(resolvedLang, defaultLocale, year, month)}`;
 
-  // seoMeta from DB overrides the auto-generated per-month title/description
+  // seoMeta iz baze (po jeziku) ima prednost nad automatskim naslovom/opisom
+  // meseca; bez njega se koristi rečnik za jezik stranice (ne srpski za sve)
   const settings = await getCalendarSettingsCached(market.id);
   const seo = settings?.seoMeta?.[resolvedLang] || {};
 
-  const monthName = resolvedLang === "en" ? MONTH_NAMES_EN[month] : MONTH_NAMES_SR[month];
-  const fallback = localizedMonthMeta(resolvedLang, monthName, year);
-  const title = seo.title || fallback.title;
-  const description = seo.description || fallback.description;
+  const vars = { month: localizedMonthName(resolvedLang, month), year };
+  const title = seo.title || t(resolvedLang, "metaTitle", vars);
+  const description = seo.description || t(resolvedLang, "metaDescription", vars);
 
   // hreflang: jedan alternate po jeziku tržišta, ne samo trenutni — ako tržište
   // ima samo jedan jezik, ovo se svodi na isto ponašanje kao pre (jedan unos).
@@ -239,7 +215,7 @@ export async function buildCalendarMetadata(market, year, month, lang) {
           url: "https://cloud.merbet.com/Preview-image/calendar-universal.png",
           width: 1200,
           height: 630,
-          alt: "Kalendar Promocija",
+          alt: t(resolvedLang, "calendarImageAlt"),
         },
       ],
     },
@@ -331,10 +307,14 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
   const dayFrom = monthBg.dayFrom || null;
   const dayTo = monthBg.dayTo || null;
 
-  // naslov kalendara — per-month override > global calendarTitle > hardcoded fallback
-  const monthTitle = monthBg.titleSr;
-  const globalTitles = calendarSettings?.calendarTitle || {};
-  const calendarTitle = monthTitle || globalTitles[resolvedLang] || globalTitles.sr || "PRAZNIČNE MISIJE";
+  // naslov kalendara po jeziku: naslov meseca > globalni naslov > rečnik.
+  // titleSr je stari naslov meseca (važi za podrazumevani jezik tržišta).
+  const defaultLang = market.defaultLocale || "sr";
+  const monthTitles = { ...(monthBg.titleSr ? { [defaultLang]: monthBg.titleSr } : {}), ...(monthBg.titles || {}) };
+  const calendarTitle =
+    pickLocalized(monthTitles, resolvedLang, defaultLang) ||
+    pickLocalized(calendarSettings?.calendarTitle, resolvedLang, defaultLang) ||
+    t(resolvedLang, "calendarTitle");
 
   // tema kalendara — per-month override > global default
   const theme = monthBg.theme || calendarSettings?.theme || "default";
@@ -343,7 +323,8 @@ export async function loadCalendarPageData({ market, year, month, isAdmin, lang 
 
   // Odbrojavanje — podešeno u admin panelu; fallback zadržava dosadašnje ponašanje dok se ne podesi
   const countdownTargetIso = calendarSettings?.countdownTargetIso || "2026-06-11T00:00:00";
-  const countdownLabel = calendarSettings?.countdownLabel || "Kalendar se otvara za";
+  const countdownLabel =
+    pickLocalized(calendarSettings?.countdownLabel, resolvedLang, defaultLang) || t(resolvedLang, "countdownDefault");
 
   const leaderboard = {
     enabled: !!calendarSettings?.leaderboard?.enabled,

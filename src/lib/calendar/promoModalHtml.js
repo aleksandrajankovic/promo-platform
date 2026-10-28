@@ -3,12 +3,13 @@
 // identično i na serveru (SSR sadržaj za otvoreni dan) i na klijentu (klik).
 import { renderScratchModal, extractFirstImg } from "./scratch/renderScratchModal";
 import { getExclusiveBadgeLabel } from "@/lib/calendar/promoCategoryStyles";
+import { t } from "@/lib/i18n/messages";
+
+const noPromosHtml = (lang) => `<p>${t(lang, "noPromos")}</p>`;
 
 function renderNormalModal(entry, lang = "sr") {
   if (!entry) {
-    return lang === "sr"
-      ? "<p>Ne postoje promocije za ovaj dan.</p>"
-      : "<p>No promotions for this day.</p>";
+    return noPromosHtml(lang);
   }
 
   const { promo } = entry;
@@ -21,9 +22,7 @@ function renderNormalModal(entry, lang = "sr") {
   const richHtml = entry.richHtml || (promo && promo.richHtml) || "";
 
   if (!promo && !richHtml) {
-    return lang === "sr"
-      ? "<p>Ne postoje promocije za ovaj dan.</p>"
-      : "<p>No promotions for this day.</p>";
+    return noPromosHtml(lang);
   }
 
   let imageHtml = null;
@@ -46,7 +45,7 @@ function renderNormalModal(entry, lang = "sr") {
   const canOpen = openUrl && openUrl !== "#";
   const isYellow = buttonColor === "yellow";
   const defaultButtonLabel =
-    button || (lang === "sr" ? "Registruj se" : "Register");
+    button || t(lang, "register");
 
   return `
     <div class="flex flex-col w-full max-w-[420px] mx-auto">
@@ -118,9 +117,7 @@ function renderNormalModal(entry, lang = "sr") {
 
 export function renderModalHTML(entry, lang = "sr", theme = "default", coverSrc = "/img/scratchCard.png", cursorSrc = "/img/coin.png") {
   if (!entry) {
-    return lang === "sr"
-      ? "<p>Ne postoje promocije za ovaj dan.</p>"
-      : "<p>No promotions for this day.</p>";
+    return noPromosHtml(lang);
   }
 
   const { promo, type } = entry;
@@ -132,7 +129,7 @@ export function renderModalHTML(entry, lang = "sr", theme = "default", coverSrc 
   const link = entry.link || (promo && promo.link) || "";
   const richHtml = entry.richHtml || (promo && promo.richHtml) || "";
   const defaultButtonLabel =
-    button || (lang === "sr" ? "Registruj se" : "Register");
+    button || t(lang, "register");
 
   const isScratch = !!(entry?.scratch || promo?.scratch);
   const isFlip = !!(entry?.flipCard || promo?.flipCard);
@@ -194,7 +191,7 @@ function renderFlipModal({ title, richHtml, link, button, buttonColor, lang, cat
           ${
             imgSrc
               ? `<img src="${imgSrc}" alt="" class="absolute inset-0 z-0 block w-full h-full object-cover" />`
-              : `<div class="absolute inset-0 z-0 flex items-center justify-center text-white/70 text-sm leading-normal bg-[#6b21a8]">No image</div>`
+              : `<div class="absolute inset-0 z-0 flex items-center justify-center text-white/70 text-sm leading-normal bg-[#6b21a8]">${t(lang, "noImage")}</div>`
           }
         </div>
         <div class="flip-card-face flip-card-back absolute inset-0 rounded-2xl bg-[#05070D] px-4 py-5 overflow-y-auto">
@@ -231,7 +228,7 @@ function renderFlipModal({ title, richHtml, link, button, buttonColor, lang, cat
       </div>
     </div>
     <div id="flip-hint" class="mt-3 text-center text-xs text-white/70 uppercase tracking-[0.1em]">
-      ${lang === "sr" ? "Dodirni za detalje" : "Tap for details"}
+      ${t(lang, "tapForDetails")}
     </div>
   </div>
   `;

@@ -20,7 +20,7 @@ export default function SeoTab({
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-2 text-sm"
               value={seoTitleSr}
               onChange={(e) => setSeoTitleSr(e.target.value)}
-              placeholder="Kalendar Promocija | Meridianbet"
+              placeholder="Leave empty — an automatic title is generated per month"
               maxLength={120}
             />
             <span className="mt-0.5 text-xs text-neutral-400">{seoTitleSr.length}/120 characters</span>
@@ -32,7 +32,7 @@ export default function SeoTab({
               rows={3}
               value={seoDescSr}
               onChange={(e) => setSeoDescSr(e.target.value)}
-              placeholder="Otkrijte dnevne promocije i iskoristite ekskluzivne nagrade..."
+              placeholder="Leave empty — an automatic description is generated per month"
               maxLength={320}
             />
             <span className="mt-0.5 text-xs text-neutral-400">{seoDescSr.length}/320 characters</span>

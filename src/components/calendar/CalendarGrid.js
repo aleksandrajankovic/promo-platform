@@ -1,5 +1,6 @@
 import { buildCalendarData } from "@/lib/calendar/calendarGridHelpers";
 import { renderModalHTML } from "@/lib/calendar/promoModalHtml";
+import { t } from "@/lib/i18n/messages";
 import CalendarDayCell from "./CalendarDayCell";
 import CalendarGhostCell from "./CalendarGhostCell";
 import CalendarMobileStack from "./CalendarMobileStack";
@@ -25,6 +26,7 @@ export default function CalendarGrid({
   scratchCursorUrl = "/img/coin.png",
   dayFrom = null,
   dayTo = null,
+  defaultLocale = "sr",
 }) {
   const { cells, daysPayload, dayFrom: visibleFrom, dayTo: visibleTo, isRange } = buildCalendarData({
     year,
@@ -88,6 +90,7 @@ export default function CalendarGrid({
                     <CalendarDayBall
                       key={cell.key}
                       cell={cell}
+                      lang={lang}
                       adminPreview={adminPreview}
                     />
                   );
@@ -130,6 +133,8 @@ export default function CalendarGrid({
         {isFootball
           ? <CalendarMobileFootball
               adminPreview={adminPreview}
+              lang={lang}
+              defaultLocale={defaultLocale}
               year={year}
               month={month}
               prevMonth={prevMonth}
@@ -166,7 +171,7 @@ export default function CalendarGrid({
             pointer-events-auto
           "
         >
-          <span id="promo-title" className="sr-only">Detalji promocije</span>
+          <span id="promo-title" className="sr-only">{t(lang, "promoDetails")}</span>
 
           <button
             id="promo-close"
@@ -178,7 +183,7 @@ export default function CalendarGrid({
               text-white/70 hover:text-white
               bg-white/5 hover:bg-white/10
             "
-            aria-label="Zatvori"
+            aria-label={t(lang, "close")}
           >
             ✕
           </button>

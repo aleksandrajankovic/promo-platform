@@ -4,36 +4,45 @@ export const runtime = "nodejs";
 import { revalidateTag } from "next/cache";
 import prisma from "@/lib/db";
 import { requireAdminMarketOrResponse } from "@/lib/marketScope";
+import { mergeLocalizedSeo, mergeLocalizedText } from "@/lib/i18n/localizedText";
 
 const VALID_POS = ["left", "center", "right"];
 const VALID_THEMES = ["default", "default-horizontal", "football"];
-const DEFAULT_SEO_META = {
-  sr: { title: "Kalendar Promocija | Meridianbet", description: "Otkrijte dnevne promocije i iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija." },
-};
 
-export async function GET(req) {
-  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
-  if (errorResponse) return errorResponse;
-
-  const row = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
-  return Response.json({
+// Prazni naslov/SEO/natpis se NE popunjavaju podrazumevanim tekstom (ranije je
+// to bio srpski tekst i za TZ/BR...) — javna strana tada koristi rečnik za
+// jezik stranice (src/lib/i18n/messages.js).
+function toResponse(row) {
+  return {
     bgImageUrl:       row?.bgImageUrl       || "/img/bg-calendar.png",
     bgImageUrlMobile: row?.bgImageUrlMobile || "/img/bg-calendar-mobile.png",
     monthBackgrounds: row?.monthBackgrounds || {},
     calendarPosition: row?.calendarPosition || "left",
-    calendarTitle:    row?.calendarTitle    || { sr: "PRAZNIČNE MISIJE", en: "HOLIDAY MISSIONS" },
+    calendarTitle:    row?.calendarTitle    || {},
     logoUrl:          row?.logoUrl          || "/img/meridianbet-ng.png",
     theme:            row?.theme            || "default",
-    seoMeta:          row?.seoMeta          || DEFAULT_SEO_META,
+    seoMeta:          row?.seoMeta          || {},
     countdownTargetIso: row?.countdownTargetIso || "",
-    countdownLabel:     row?.countdownLabel     || "",
+    countdownLabel:     row?.countdownLabel     || {},
     leaderboard: {
       enabled: !!row?.leaderboard?.enabled,
       feedUrl: row?.leaderboard?.feedUrl || "",
     },
     scratchCoverUrl: row?.scratchCoverUrl || "/img/scratchCard.png",
     scratchCursorUrl: row?.scratchCursorUrl || "/img/coin.png",
-  });
+  };
+}
+
+function marketLangs(market) {
+  return market.locales?.length ? market.locales : [market.defaultLocale || "sr"];
+}
+
+export async function GET(req) {
+  const { market, errorResponse } = await requireAdminMarketOrResponse(req);
+  if (errorResponse) return errorResponse;
+
+  const row = await prisma.calendarSettings.findUnique({ where: { marketId: market.id } });
+  return Response.json(toResponse(row));
 }
 
 export async function PUT(req) {
@@ -63,34 +72,27 @@ export async function PUT(req) {
     patch.logoUrl = (body.logoUrl || "").trim() || null;
 
   if ("calendarTitle" in body) {
-    const lang = market.defaultLocale || "sr";
-    const t = body.calendarTitle?.[lang] ?? body.calendarTitle?.sr ?? body.calendarTitle;
-    const title = (typeof t === "string" ? t.trim() : "") || "PRAZNIČNE MISIJE";
-    patch.calendarTitle = { ...(existing?.calendarTitle || {}), [lang]: title };
+    patch.calendarTitle = mergeLocalizedText(existing?.calendarTitle, body.calendarTitle, marketLangs(market));
   }
 
   if ("theme" in body)
     patch.theme = VALID_THEMES.includes(body.theme) ? body.theme : "default";
 
-  if ("seoMeta" in body) {
-    const lang = market.defaultLocale || "sr";
-    const s = body.seoMeta?.[lang] ?? body.seoMeta;
-    patch.seoMeta = {
-      ...(existing?.seoMeta || {}),
-      [lang]: {
-        title:       (typeof s?.title       === "string" ? s.title.trim()       : "") || DEFAULT_SEO_META.sr.title,
-        description: (typeof s?.description === "string" ? s.description.trim() : "") || DEFAULT_SEO_META.sr.description,
-      },
-    };
-  }
+  if ("seoMeta" in body)
+    patch.seoMeta = mergeLocalizedSeo(existing?.seoMeta, body.seoMeta, marketLangs(market));
 
   if ("countdownTargetIso" in body) {
     const raw = (body.countdownTargetIso || "").trim();
     patch.countdownTargetIso = raw && !Number.isNaN(new Date(raw).getTime()) ? raw : null;
   }
 
-  if ("countdownLabel" in body)
-    patch.countdownLabel = (body.countdownLabel || "").trim() || null;
+  if ("countdownLabel" in body) {
+    // stari klijent šalje string — tumači se kao tekst za podrazumevani jezik
+    const incoming = typeof body.countdownLabel === "string"
+      ? { [market.defaultLocale || "sr"]: body.countdownLabel }
+      : body.countdownLabel;
+    patch.countdownLabel = mergeLocalizedText(existing?.countdownLabel, incoming, marketLangs(market));
+  }
 
   if ("scratchCoverUrl" in body)
     patch.scratchCoverUrl = (body.scratchCoverUrl || "").trim() || null;
@@ -119,6 +121,8 @@ export async function PUT(req) {
           const titleSr  = (val.titleSr  || "").trim() || null;
           const inactive = val.inactive === true ? true : null;
           const theme    = VALID_THEMES.includes(val.theme) ? val.theme : null;
+          // naslov meseca po jeziku (titleSr ostaje kao stari naslov za podrazumevani jezik)
+          const titles   = mergeLocalizedText(null, val.titles, marketLangs(market));
           // dodatni razmak iznad kalendara, u % visine ekrana (0–40), posebno desktop/mobilni
           const pct = (v) => { const n = Math.round(Number(v)); return n > 0 ? Math.min(n, 40) : null; };
           const topOffset       = pct(val.topOffset);
@@ -127,8 +131,8 @@ export async function PUT(req) {
           const day = (v) => { const n = Math.round(Number(v)); return n >= 1 && n <= 31 ? n : null; };
           const dayFrom = day(val.dayFrom);
           const dayTo   = day(val.dayTo);
-          if (desktop || mobile || position || titleSr || inactive || theme || topOffset || topOffsetMobile || dayFrom || dayTo)
-            out[key] = { desktop, mobile, position, titleSr, inactive, theme, topOffset, topOffsetMobile, dayFrom, dayTo };
+          if (desktop || mobile || position || titleSr || titles || inactive || theme || topOffset || topOffsetMobile || dayFrom || dayTo)
+            out[key] = { desktop, mobile, position, titleSr, titles, inactive, theme, topOffset, topOffsetMobile, dayFrom, dayTo };
         }
       }
       cleaned = Object.keys(out).length ? out : null;
@@ -143,22 +147,5 @@ export async function PUT(req) {
   });
 
   revalidateTag("calendar", { expire: 0 });
-  return Response.json({
-    bgImageUrl:       row.bgImageUrl       || "/img/bg-calendar.png",
-    bgImageUrlMobile: row.bgImageUrlMobile || "/img/bg-calendar-mobile.png",
-    monthBackgrounds: row.monthBackgrounds || {},
-    calendarPosition: row.calendarPosition || "left",
-    calendarTitle:    row.calendarTitle    || { sr: "PRAZNIČNE MISIJE", en: "HOLIDAY MISSIONS" },
-    logoUrl:          row.logoUrl          || "/img/meridianbet-ng.png",
-    theme:            row.theme            || "default",
-    seoMeta:          row.seoMeta          || DEFAULT_SEO_META,
-    countdownTargetIso: row.countdownTargetIso || "",
-    countdownLabel:     row.countdownLabel     || "",
-    leaderboard: {
-      enabled: !!row.leaderboard?.enabled,
-      feedUrl: row.leaderboard?.feedUrl || "",
-    },
-    scratchCoverUrl: row.scratchCoverUrl || "/img/scratchCard.png",
-    scratchCursorUrl: row.scratchCursorUrl || "/img/coin.png",
-  });
+  return Response.json(toResponse(row));
 }

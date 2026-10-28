@@ -8,6 +8,8 @@ import BrandingLayoutTab from "./components/BrandingLayoutTab";
 import ScratchTab from "./components/ScratchTab";
 import SeoTab from "./components/SeoTab";
 import EngagementTab from "./components/EngagementTab";
+import { LanguageTabs } from "../components/PromoEditorFields";
+import { t as tr } from "@/lib/i18n/messages";
 
 const TABS = [
   { key: "branding", label: "Branding & Layout" },
@@ -24,13 +26,13 @@ export default function CalendarStylePage() {
   const [bgUrl, setBgUrl]                       = useState("");
   const [bgUrlMobile, setBgUrlMobile]           = useState("");
   const [calendarPosition, setCalendarPosition] = useState("left");
-  const [titleSr, setTitleSr]                   = useState("PRAZNIČNE MISIJE");
+  // tekstovi po jeziku tržišta: { sw: "...", en: "..." }
+  const [titles, setTitles]                     = useState({});
   const [logoUrl, setLogoUrl]                   = useState("/img/meridianbet-ng.png");
   const [theme, setTheme]                       = useState("default");
-  const [seoTitleSr, setSeoTitleSr]             = useState("");
-  const [seoDescSr, setSeoDescSr]               = useState("");
+  const [seo, setSeo]                           = useState({});
   const [countdownTargetIso, setCountdownTargetIso] = useState("");
-  const [countdownLabel, setCountdownLabel]         = useState("");
+  const [countdownLabels, setCountdownLabels]       = useState({});
   const [leaderboardEnabled, setLeaderboardEnabled] = useState(false);
   const [leaderboardFeedUrl, setLeaderboardFeedUrl] = useState("");
   const [scratchCoverUrl, setScratchCoverUrl]   = useState("/img/scratchCard.png");
@@ -45,9 +47,8 @@ export default function CalendarStylePage() {
   const [saving, setSaving]                     = useState(false);
   const [showGallery, setShowGallery]           = useState(false);
   const [galleryTarget, setGalleryTarget]       = useState(null);
-  // "sr" je samo placeholder dok se ne ucita pravo trziste — ne sme da ostane
-  // fiksno, jer /api/calendar-settings cuva seoMeta/calendarTitle pod
-  // market.defaultLocale ključem (npr. "pt" za BR), ne uvek pod "sr".
+  // jezik koji se trenutno uređuje (tabovi, ako tržište ima više jezika)
+  const [market, setMarket]                     = useState(null);
   const [lang, setLang]                         = useState("sr");
 
   useEffect(() => {
@@ -55,28 +56,46 @@ export default function CalendarStylePage() {
       fetch("/api/admin/current-market").then((r) => (r.ok ? r.json() : null)).catch(() => null),
       fetch("/api/calendar-settings").then((r) => (r.ok ? r.json() : Promise.reject(r.status))),
     ])
-      .then(([market, d]) => {
-        const resolvedLang = market?.defaultLocale || "sr";
-        setLang(resolvedLang);
-        setBgUrl(d.bgImageUrl || "/img/bg-calendar.png");
-        setBgUrlMobile(d.bgImageUrlMobile || "/img/bg-calendar-mobile.png");
-        setCalendarPosition(d.calendarPosition || "left");
-        setTitleSr(d.calendarTitle?.[resolvedLang] || d.calendarTitle?.sr || "PRAZNIČNE MISIJE");
-        setLogoUrl(d.logoUrl || "/img/meridianbet-ng.png");
-        setTheme(d.theme || "default");
-        setSeoTitleSr(d.seoMeta?.[resolvedLang]?.title || "");
-        setSeoDescSr(d.seoMeta?.[resolvedLang]?.description || "");
-        setCountdownTargetIso(d.countdownTargetIso || "");
-        setCountdownLabel(d.countdownLabel || "");
-        setLeaderboardEnabled(!!d.leaderboard?.enabled);
-        setLeaderboardFeedUrl(d.leaderboard?.feedUrl || "");
-        setScratchCoverUrl(d.scratchCoverUrl || "/img/scratchCard.png");
-        setScratchCursorUrl(d.scratchCursorUrl || "/img/coin.png");
-        setMonthBackgrounds(d.monthBackgrounds || {});
+      .then(([m, d]) => {
+        setMarket(m);
+        setLang(m?.defaultLocale || "sr");
+        applySettings(d);
       })
       .catch(() => toast.error("Error loading settings."))
       .finally(() => setLoading(false));
   }, []);
+
+  function applySettings(d) {
+    setBgUrl(d.bgImageUrl || "/img/bg-calendar.png");
+    setBgUrlMobile(d.bgImageUrlMobile || "/img/bg-calendar-mobile.png");
+    setCalendarPosition(d.calendarPosition || "left");
+    setTitles(d.calendarTitle || {});
+    setLogoUrl(d.logoUrl || "/img/meridianbet-ng.png");
+    setTheme(d.theme || "default");
+    setSeo(d.seoMeta || {});
+    setCountdownTargetIso(d.countdownTargetIso || "");
+    setCountdownLabels(typeof d.countdownLabel === "string" ? {} : d.countdownLabel || {});
+    setLeaderboardEnabled(!!d.leaderboard?.enabled);
+    setLeaderboardFeedUrl(d.leaderboard?.feedUrl || "");
+    setScratchCoverUrl(d.scratchCoverUrl || "/img/scratchCard.png");
+    setScratchCursorUrl(d.scratchCursorUrl || "/img/coin.png");
+    setMonthBackgrounds(d.monthBackgrounds || {});
+  }
+
+  // vrednosti i setteri za izabrani jezik — tabovi ispod rade sa jednim tekstom
+  const langs = market?.locales?.length ? market.locales : [lang];
+  const titleForLang = titles[lang] || "";
+  const setTitleForLang = (v) => setTitles((prev) => ({ ...prev, [lang]: v }));
+  const seoTitle = seo[lang]?.title || "";
+  const seoDesc = seo[lang]?.description || "";
+  const setSeoField = (field) => (v) => setSeo((prev) => ({ ...prev, [lang]: { ...prev[lang], [field]: v } }));
+  const countdownLabel = countdownLabels[lang] || "";
+  const setCountdownLabel = (v) => setCountdownLabels((prev) => ({ ...prev, [lang]: v }));
+
+  // prazna polja za sve jezike tržišta se šalju kao "" da API obriše prevod
+  function perLang(map, empty) {
+    return Object.fromEntries(langs.map((l) => [l, map[l] ?? empty]));
+  }
 
   function openGallery(target) {
     setGalleryTarget(target);
@@ -109,12 +128,12 @@ export default function CalendarStylePage() {
           bgImageUrl: bgUrl,
           bgImageUrlMobile: bgUrlMobile,
           calendarPosition,
-          calendarTitle: { [lang]: titleSr },
+          calendarTitle: perLang(titles, ""),
           logoUrl,
           theme,
-          seoMeta: { [lang]: { title: seoTitleSr, description: seoDescSr } },
+          seoMeta: perLang(seo, {}),
           countdownTargetIso,
-          countdownLabel,
+          countdownLabel: perLang(countdownLabels, ""),
           leaderboard: { enabled: leaderboardEnabled, feedUrl: leaderboardFeedUrl },
           scratchCoverUrl,
           scratchCursorUrl,
@@ -122,22 +141,7 @@ export default function CalendarStylePage() {
         }),
       });
       if (!res.ok) throw new Error((await res.text().catch(() => "")) || `HTTP ${res.status}`);
-      const d = await res.json();
-      setBgUrl(d.bgImageUrl || "/img/bg-calendar.png");
-      setBgUrlMobile(d.bgImageUrlMobile || "/img/bg-calendar-mobile.png");
-      setCalendarPosition(d.calendarPosition || "left");
-      setTitleSr(d.calendarTitle?.[lang] || d.calendarTitle?.sr || "PRAZNIČNE MISIJE");
-      setLogoUrl(d.logoUrl || "/img/meridianbet-ng.png");
-      setTheme(d.theme || "default");
-      setSeoTitleSr(d.seoMeta?.[lang]?.title || "");
-      setSeoDescSr(d.seoMeta?.[lang]?.description || "");
-      setCountdownTargetIso(d.countdownTargetIso || "");
-      setCountdownLabel(d.countdownLabel || "");
-      setLeaderboardEnabled(!!d.leaderboard?.enabled);
-      setLeaderboardFeedUrl(d.leaderboard?.feedUrl || "");
-      setScratchCoverUrl(d.scratchCoverUrl || "/img/scratchCard.png");
-      setScratchCursorUrl(d.scratchCursorUrl || "/img/coin.png");
-      setMonthBackgrounds(d.monthBackgrounds || {});
+      applySettings(await res.json());
       toast.success("Calendar style saved.");
     } catch (e) {
       toast.error(`Error: ${e.message || "Saving failed."}`);
@@ -159,12 +163,22 @@ export default function CalendarStylePage() {
         <div className="p-4 text-sm">Loading…</div>
       ) : (
         <>
+          {langs.length > 1 && (
+            <div className="mb-4 rounded-lg border border-neutral-200 bg-white px-4 pt-2 shadow-sm">
+              <LanguageTabs market={market} activeLang={lang} onChange={setLang} />
+              <p className="pb-2 text-xs text-neutral-500">
+                Titles, SEO and the countdown label are edited per language. Images, theme and layout are shared.
+              </p>
+            </div>
+          )}
           <TabNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
           {activeTab === "branding" && (
             <BrandingLayoutTab
               logoUrl={logoUrl} setLogoUrl={setLogoUrl}
-              titleSr={titleSr} setTitleSr={setTitleSr} lang={lang}
+              titleSr={titleForLang} setTitleSr={setTitleForLang} lang={lang}
+              defaultLang={market?.defaultLocale || "sr"}
+              titlePlaceholder={tr(lang, "calendarTitle")}
               theme={theme} setTheme={setTheme}
               calendarPosition={calendarPosition} setCalendarPosition={setCalendarPosition}
               bgUrl={bgUrl} setBgUrl={setBgUrl}
@@ -186,8 +200,8 @@ export default function CalendarStylePage() {
 
           {activeTab === "seo" && (
             <SeoTab
-              seoTitleSr={seoTitleSr} setSeoTitleSr={setSeoTitleSr}
-              seoDescSr={seoDescSr} setSeoDescSr={setSeoDescSr}
+              seoTitleSr={seoTitle} setSeoTitleSr={setSeoField("title")}
+              seoDescSr={seoDesc} setSeoDescSr={setSeoField("description")}
               lang={lang}
             />
           )}
@@ -196,6 +210,8 @@ export default function CalendarStylePage() {
             <EngagementTab
               countdownTargetIso={countdownTargetIso} setCountdownTargetIso={setCountdownTargetIso}
               countdownLabel={countdownLabel} setCountdownLabel={setCountdownLabel}
+              countdownPlaceholder={tr(lang, "countdownDefault")}
+              lang={lang}
               leaderboardEnabled={leaderboardEnabled} setLeaderboardEnabled={setLeaderboardEnabled}
               leaderboardFeedUrl={leaderboardFeedUrl} setLeaderboardFeedUrl={setLeaderboardFeedUrl}
             />

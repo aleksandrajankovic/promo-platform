@@ -61,7 +61,7 @@ function PositionIcon({ value }) {
 
 export default function BrandingLayoutTab({
   logoUrl, setLogoUrl,
-  titleSr, setTitleSr, lang,
+  titleSr, setTitleSr, lang, defaultLang = "sr", titlePlaceholder = "",
   theme, setTheme,
   calendarPosition, setCalendarPosition,
   bgUrl, setBgUrl,
@@ -83,6 +83,23 @@ export default function BrandingLayoutTab({
     }));
   }
 
+  // Naslov meseca po jeziku: titles[lang]; stari titleSr važi za podrazumevani
+  // jezik dok se ne izmeni (tada se prebacuje u titles i briše).
+  const monthTitle = currentBg.titles?.[lang] ?? (lang === defaultLang ? currentBg.titleSr || "" : "");
+  function setMonthTitle(value) {
+    setMonthBackgrounds((prev) => {
+      const bg = prev[currentKey] || {};
+      return {
+        ...prev,
+        [currentKey]: {
+          ...bg,
+          titles: { ...(bg.titles || {}), [lang]: value },
+          ...(lang === defaultLang ? { titleSr: null } : {}),
+        },
+      };
+    });
+  }
+
   function clearKey(key) {
     setMonthBackgrounds((prev) => {
       const next = { ...prev };
@@ -94,7 +111,7 @@ export default function BrandingLayoutTab({
   const configuredKeys = useMemo(
     () => Object.keys(monthBackgrounds).filter((k) => {
       const v = monthBackgrounds[k];
-      return v?.desktop || v?.mobile || v?.position || v?.titleSr || v?.inactive || v?.theme
+      return v?.desktop || v?.mobile || v?.position || v?.titleSr || (v?.titles && Object.keys(v.titles).length) || v?.inactive || v?.theme
         || v?.topOffset || v?.topOffsetMobile || v?.dayFrom || v?.dayTo;
     }),
     [monthBackgrounds]
@@ -195,33 +212,34 @@ export default function BrandingLayoutTab({
       {/* ── CALENDAR TITLE ── */}
       <AdminTableCard title="Calendar Title">
         <div className="p-4 space-y-4">
-          <p className="text-sm text-neutral-500">Global default heading shown above the calendar.</p>
+          <p className="text-sm text-neutral-500">
+            Global default heading shown above the calendar ({lang.toUpperCase()}). Leave empty for &quot;{titlePlaceholder}&quot;.
+          </p>
           <input
             className="w-full border border-[#D0D0D0] rounded px-2.5 py-2 text-sm"
             value={titleSr}
             onChange={(e) => setTitleSr(e.target.value)}
+            placeholder={titlePlaceholder}
           />
-          {titleSr && (
-            <div className="pt-2 border-t border-neutral-100">
-              <p className="text-xs text-neutral-400 mb-1">Preview ({lang.toUpperCase()}):</p>
-              <p className="text-2xl font-extrabold tracking-tight text-neutral-800">{titleSr}</p>
-            </div>
-          )}
+          <div className="pt-2 border-t border-neutral-100">
+            <p className="text-xs text-neutral-400 mb-1">Preview ({lang.toUpperCase()}):</p>
+            <p className="text-2xl font-extrabold tracking-tight text-neutral-800">{titleSr || titlePlaceholder}</p>
+          </div>
 
           <div className="mt-5 pt-4 border-t border-neutral-100">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-neutral-800">Override for {monthLabel}</p>
-              {currentBg.titleSr && (
-                <button type="button" onClick={() => setField("titleSr", null)} className="text-xs text-red-500 hover:text-red-700 underline">
+              {monthTitle && (
+                <button type="button" onClick={() => setMonthTitle("")} className="text-xs text-red-500 hover:text-red-700 underline">
                   Clear override
                 </button>
               )}
             </div>
             <input
               className="w-full border border-[#D0D0D0] rounded px-2.5 py-1.5 text-sm"
-              value={currentBg.titleSr || ""}
-              onChange={(e) => setField("titleSr", e.target.value)}
-              placeholder={`Leave empty to use global title ("${titleSr}")`}
+              value={monthTitle}
+              onChange={(e) => setMonthTitle(e.target.value)}
+              placeholder={`Leave empty to use the global title ("${titleSr || titlePlaceholder}")`}
             />
           </div>
         </div>
@@ -506,7 +524,7 @@ export default function BrandingLayoutTab({
                   bg.inactive && "⚠ deactivated",
                   bg.theme === "football" && "⚽ football",
                   bg.theme === "default-horizontal" && "↔ horizontal",
-                  bg.titleSr && "title",
+                  (bg.titleSr || (bg.titles && Object.keys(bg.titles).length)) && "title",
                   bg.position && `position: ${bg.position}`,
                   (bg.dayFrom || bg.dayTo) && `days: ${bg.dayFrom || 1}–${bg.dayTo || 31}`,
                   bg.topOffset && `space above: ${bg.topOffset}%`,

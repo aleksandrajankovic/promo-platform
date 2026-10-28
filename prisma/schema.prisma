@@ -54,7 +54,7 @@ model CalendarSettings {
   theme              String?
   seoMeta            Json?
   countdownTargetIso String?
-  countdownLabel     String?
+  countdownLabel     Json? // { jezik: tekst }, kao calendarTitle
   leaderboard        Json?
   scratchCoverUrl    String?
   scratchCursorUrl   String?

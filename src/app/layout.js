@@ -3,6 +3,7 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { headers } from "next/headers";
 import { resolveMarketByHostCached } from "@/lib/marketScope";
+import { t } from "@/lib/i18n/messages";
 import { getBaseUrl, getMainSiteUrl } from "@/lib/calendar/calendarPage";
 
 // Dinamičko po host-u (resolveMarketByHost) — eksplicitno, ne oslanjati se na
@@ -19,14 +20,6 @@ function resolveLocale(market, firstSegment) {
   return defaultLocale;
 }
 
-const DEFAULT_TITLE_BY_LOCALE = {
-  sr: "Kalendar Promocija | Meridianbet",
-  en: "Promo Calendar | Meridianbet",
-};
-const DEFAULT_DESCRIPTION_BY_LOCALE = {
-  sr: "Budite u toku sa dnevnim ponudama, otkrijte nove promocije i iskoristite ekskluzivne nagrade uz Meridianbet Kalendar Promocija.",
-  en: "Stay up to date with daily offers, discover new promotions, and claim exclusive rewards with the Meridianbet Promo Calendar.",
-};
 
 const roboto = Roboto({
   subsets: ["latin", "latin-ext", "cyrillic"],
@@ -44,8 +37,8 @@ export async function generateMetadata() {
   const market = await resolveMarketByHostCached(h.get("host"), h.get("cookie"));
   const baseUrl = getBaseUrl(market);
   const lang = resolveLocale(market, h.get("x-first-segment"));
-  const title = DEFAULT_TITLE_BY_LOCALE[lang] || DEFAULT_TITLE_BY_LOCALE.sr;
-  const description = DEFAULT_DESCRIPTION_BY_LOCALE[lang] || DEFAULT_DESCRIPTION_BY_LOCALE.sr;
+  const title = t(lang, "siteTitle");
+  const description = t(lang, "siteDescription");
 
   return {
     metadataBase: new URL(baseUrl),
@@ -62,7 +55,7 @@ export async function generateMetadata() {
           url: "https://cloud.merbet.com/Preview-image/calendar-universal.png",
           width: 1200,
           height: 630,
-          alt: "Kalendar Promocija",
+          alt: t(lang, "calendarImageAlt"),
         },
       ],
       locale: lang,

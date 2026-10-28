@@ -17,6 +17,8 @@ const NUM_DOTS = 7;
 
 export default function CalendarMobileFootball({
   adminPreview = false,
+  lang = "sr",
+  defaultLocale = "sr",
   year,
   month,
   prevMonth = null,
@@ -349,7 +351,7 @@ export default function CalendarMobileFootball({
               className={`knockout-badge ${getKnockoutBadgeClass(knockoutPhase)}`}
               style={{ top: "6px", right: "6px", fontSize: "11px", padding: "3px 10px" }}
             >
-              {getKnockoutBadgeLabel(knockoutPhase)}
+              {getKnockoutBadgeLabel(knockoutPhase, lang)}
             </span>
           )}
 
@@ -415,6 +417,8 @@ export default function CalendarMobileFootball({
             month={month}
             prevMonth={prevMonth}
             nextMonth={nextMonth}
+            locale={lang}
+            defaultLocale={defaultLocale}
             className="text-lg mt-1"
             labelClassName={`${russoOne.className} text-base leading-none`}
           />

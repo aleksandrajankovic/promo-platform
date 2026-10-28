@@ -1,5 +1,6 @@
 // src/components/MonthPagination.js
 import { localeMonthHref } from "@/lib/calendar/calendarUrls";
+import { monthName, t } from "@/lib/i18n/messages";
 
 export default function MonthPagination({
   year,
@@ -11,8 +12,7 @@ export default function MonthPagination({
   className = "",
   labelClassName = "",
 }) {
-  const raw = new Date(year, month, 1).toLocaleString("sr-Latn-RS", { month: "long" });
-  const monthLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
+  const monthLabel = monthName(locale || defaultLocale, month);
   const href = (m) => localeMonthHref(locale, defaultLocale, m.y, m.m);
 
   return (
@@ -21,7 +21,7 @@ export default function MonthPagination({
         <a
           href={href(prevMonth)}
           className="p-1 hover:opacity-80"
-          aria-label="Previous month"
+          aria-label={t(locale || defaultLocale, "prevMonth")}
         >
           ‹
         </a>
@@ -37,7 +37,7 @@ export default function MonthPagination({
         <a
           href={href(nextMonth)}
           className="p-1 hover:opacity-80"
-          aria-label="Next month"
+          aria-label={t(locale || defaultLocale, "nextMonth")}
         >
           ›
         </a>
